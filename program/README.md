@@ -1,15 +1,1 @@
-### Environment Setup
-1. Install Rust from https://rustup.rs/
-2. Install Solana from https://docs.solana.com/cli/install-solana-cli-tools#use-solanas-install-tool
-
-### Build and test for program compiled natively
-```
-$ cargo build
-$ cargo test
-```
-
-### Build and test the program compiled for BPF
-```
-$ cargo build-bpf
-$ cargo test-bpf
-```
+On chain program for a verification program that compares the program data on chain with the code in a git repo.
