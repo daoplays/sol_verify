@@ -185,13 +185,20 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData);
         }
         
-        let mut current_state = UserMetaData::try_from_slice(&user_metadata_account_info.data.borrow()[..])?;
+        metadata.status_code.serialize(&mut &mut user_metadata_account_info.data.borrow_mut()[0..1])?;
+        let log_message_bytes = metadata.log_message.as_bytes();
 
-        current_state.log_message = metadata.log_message;
-        current_state.status_code = metadata.status_code;
+        let message_len = log_message_bytes.len() as u8;
+        message_len.serialize(&mut &mut user_metadata_account_info.data.borrow_mut()[1..2])?;
 
-        current_state.serialize(&mut &mut user_metadata_account_info.data.borrow_mut()[..])?;
+        msg!("serialize bytes size {}", message_len);
+        for i  in 0..message_len {
+            let index = i as usize;
+            let start = 2 + i as usize;
+            let end = start + 1 as usize;
+            log_message_bytes[index].serialize(&mut &mut user_metadata_account_info.data.borrow_mut()[start..end])?;
 
+        }
 
         Ok(())
 

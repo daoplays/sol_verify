@@ -1,7 +1,7 @@
 
 pub mod state;
 
-use crate::state::{Result, SubmitProgramMeta, VerifyInstruction, VerifyProgramMeta, ProgramMetaData};
+use crate::state::{Result, SubmitProgramMeta, VerifyInstruction, VerifyProgramMeta, ProgramMetaData, StatusMeta};
 
 use std::{env, io::BufRead};
 use std::str::FromStr;
@@ -42,7 +42,9 @@ fn main() {
     if function == "verify" {
 
         let test_key_file = &args[3];
-        if let Err(err) = verify_program(key_file, test_key_file) {
+        let real_address = &args[4];
+
+        if let Err(err) = verify_program(key_file, test_key_file, real_address) {
             eprintln!("{:?}", err);
             std::process::exit(1);
         }
@@ -51,6 +53,21 @@ fn main() {
     if function == "check_metadata" {
 
         if let Err(err) = check_metadata() {
+            eprintln!("{:?}", err);
+            std::process::exit(1);
+        }
+    }
+
+    if function == "update_status" {
+
+        let user_address = &args[3];
+        let status_code_string = &args[4];
+        let log_message = &args[5];
+
+        let status_code : u8 = status_code_string.parse().unwrap();
+
+
+        if let Err(err) = update_status(key_file, user_address, status_code, log_message) {
             eprintln!("{:?}", err);
             std::process::exit(1);
         }
@@ -144,7 +161,7 @@ fn submit_program(key_file: &String) ->Result<()> {
 }
 
 
-fn verify_program(key_file: &String, test_key_file: &String) ->Result<()> {
+fn verify_program(key_file: &String, test_key_file: &String, real_address_string: &String) ->Result<()> {
 
     // (2) Create a new Keypair for the new account
     let wallet = read_keypair_file(key_file).unwrap();
@@ -161,7 +178,7 @@ fn verify_program(key_file: &String, test_key_file: &String) ->Result<()> {
 */
 
 
-    let real_address = Pubkey::from_str("7EGMFCt38NyXZHsR7G3JeBgMkNPhGF3z8g1pVLEXPA8Y").unwrap();
+    let real_address = Pubkey::from_str(real_address_string).unwrap();
     let test_address = test_keypair.pubkey();
     let program_address = Pubkey::from_str(PROGRAM_KEY).unwrap();
 
@@ -291,3 +308,48 @@ fn check_metadata() ->Result<()> {
     Ok(println!("Success!"))
 }
 
+
+fn update_status(key_file : &String, user_address : &String, status_code : u8, log_message : &String) ->Result<()> {
+
+    // (2) Create a new Keypair for the new account
+    let wallet = read_keypair_file(key_file).unwrap();
+
+    // (3) Create RPC client to be used to talk to Solana cluster
+    let client = RpcClient::new(URL);
+
+    let program_address = Pubkey::from_str(PROGRAM_KEY).unwrap();
+    let user_pubkey = Pubkey::from_str(user_address).unwrap();
+
+
+    let (expected_userdata_key, _bump_seed) = Pubkey::find_program_address(&[&wallet.pubkey().to_bytes()], &program_address);
+
+    let meta_data =  StatusMeta{user_pubkey : user_pubkey, status_code : status_code, log_message : log_message.to_string()};
+
+
+    let instruction = Instruction::new_with_borsh(
+        program_address,
+        &VerifyInstruction::UpdateStatus {metadata : meta_data},
+        vec![
+            AccountMeta::new_readonly(wallet.pubkey(), true),
+            AccountMeta::new(expected_userdata_key, false),
+            AccountMeta::new_readonly(solana_sdk::system_program::id(), false)
+        ],
+    );
+
+    let signers = [&wallet];
+    let instructions = vec![instruction];
+    let recent_hash = client.get_latest_blockhash()?;
+
+    let txn = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&wallet.pubkey()),
+        &signers,
+        recent_hash,
+    );
+
+    let signature = client.send_transaction(&txn)?;
+    println!("signature: {}", signature);
+    
+
+    Ok(println!("Success!"))
+}
