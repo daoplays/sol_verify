@@ -20,7 +20,7 @@ use sha2::{Sha256, Digest};
 
 
 // some globals
-const PROGRAM_KEY : &str = "2GYWCuoYhJnkk9vvmfXqaiHN6W9h6wVT2XkXRQU6N4yq";
+const PROGRAM_KEY : &str = "4xTTRRsDAjme4JoZxQ87czQvmstZ6onJJdNAQXpPw9PA";
 
 const SOLANA_DEV: &str = "https://api.devnet.solana.com";
 
@@ -31,9 +31,18 @@ fn main() {
     let key_file = &args[1];
     let function = &args[2];
 
-    if function == "init_program" {
+    if function == "submit" {
 
-        if let Err(err) = verify_program(key_file) {
+        if let Err(err) = submit_program(key_file) {
+            eprintln!("{:?}", err);
+            std::process::exit(1);
+        }
+    }
+
+    if function == "verify" {
+
+        let test_key_file = &args[3];
+        if let Err(err) = verify_program(key_file, test_key_file) {
             eprintln!("{:?}", err);
             std::process::exit(1);
         }
@@ -79,10 +88,68 @@ fn get_sha256_hashed_data(real_data : &[u8], test_data: &[u8]) -> (bool, [u8; 32
 }
 
 
-fn verify_program(key_file: &String) ->Result<()> {
+fn submit_program(key_file: &String) ->Result<()> {
 
     // (2) Create a new Keypair for the new account
     let wallet = read_keypair_file(key_file).unwrap();
+
+    // (3) Create RPC client to be used to talk to Solana cluster
+    let client = RpcClient::new(URL);
+
+    let real_address = Pubkey::from_str("7EGMFCt38NyXZHsR7G3JeBgMkNPhGF3z8g1pVLEXPA8Y").unwrap();
+    let git_repo = "https://github.com/daoplays/solana_examples.git".to_string();
+    let git_commit = "f3dd81928e49299f04070dfc58dd5cd3dd48a682".to_string();
+    let directory = "charity_auction/program".to_string();
+    let docker_version = "solana_v1.1.14".to_string();
+
+    let program_address = Pubkey::from_str(PROGRAM_KEY).unwrap();
+
+    let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&real_address.to_bytes()], &program_address);
+
+    let (expected_userdata_key, _bump_seed) = Pubkey::find_program_address(&[&wallet.pubkey().to_bytes()], &program_address);
+
+    let meta_data =  SubmitProgramMeta{address: real_address, git_repo : git_repo, git_commit : git_commit, directory : directory, docker_version : docker_version };
+
+
+    let instruction = Instruction::new_with_borsh(
+        program_address,
+        &VerifyInstruction::SubmitProgram {metadata : meta_data},
+        vec![
+            AccountMeta::new_readonly(wallet.pubkey(), true),
+            AccountMeta::new(expected_metadata_key, false),
+            AccountMeta::new(expected_userdata_key, false),
+            AccountMeta::new_readonly(solana_sdk::system_program::id(), false)
+
+
+        ],
+    );
+
+    let signers = [&wallet];
+    let instructions = vec![instruction];
+    let recent_hash = client.get_latest_blockhash()?;
+
+    let txn = Transaction::new_signed_with_payer(
+        &instructions,
+        Some(&wallet.pubkey()),
+        &signers,
+        recent_hash,
+    );
+
+    let signature = client.send_and_confirm_transaction(&txn)?;
+    println!("signature: {}", signature);
+    let response = client.get_transaction(&signature, UiTransactionEncoding::Json)?;
+    println!("result: {:#?}", response); 
+
+    Ok(println!("Success!"))
+}
+
+
+fn verify_program(key_file: &String, test_key_file: &String) ->Result<()> {
+
+    // (2) Create a new Keypair for the new account
+    let wallet = read_keypair_file(key_file).unwrap();
+    let test_keypair = read_keypair_file(test_key_file).unwrap();
+
 
     // (3) Create RPC client to be used to talk to Solana cluster
     let client = RpcClient::new(URL);
@@ -95,7 +162,7 @@ fn verify_program(key_file: &String) ->Result<()> {
 
 
     let real_address = Pubkey::from_str("7EGMFCt38NyXZHsR7G3JeBgMkNPhGF3z8g1pVLEXPA8Y").unwrap();
-    let test_address = Pubkey::from_str("93ABYvvqSwp5zreyaFRXPLWEHQxrA8KtLAEzpxYN46LG").unwrap();
+    let test_address = test_keypair.pubkey();
     let program_address = Pubkey::from_str(PROGRAM_KEY).unwrap();
 
     let real_program_account = client.get_account(&real_address)?;

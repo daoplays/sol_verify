@@ -53,7 +53,12 @@ pub struct ProgramMetaData {
     pub data_hash : [u8 ; 32]
 }
 
-
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
+pub struct StatusMeta {
+    pub user_pubkey : Pubkey,
+    pub status_code : u8,
+    pub log_message : String
+}
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
 pub enum VerifyInstruction {
@@ -63,5 +68,8 @@ pub enum VerifyInstruction {
     },
     VerifyProgram {
         metadata : VerifyProgramMeta
+    },
+    UpdateStatus {
+        metadata : StatusMeta
     }
 }
