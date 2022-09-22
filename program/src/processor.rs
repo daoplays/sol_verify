@@ -158,10 +158,10 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // the third account is the daoplays SOL address
+        // the first account is the daoplays SOL address
         if dao_plays_account_info.key != &accounts::get_expected_daoplays_key()
         {
-            msg!("expected third account to be the daoplays address {}", accounts::get_expected_daoplays_key());
+            msg!("expected first account to be the verifier address {}", accounts::get_expected_daoplays_key());
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -169,7 +169,7 @@ impl Processor {
         
         if user_metadata_account_info.key != &expected_user_metadata_key
         { 
-            msg!("expected third account to be the user metadata account {}", expected_user_metadata_key);
+            msg!("expected second account to be the user metadata account {}", expected_user_metadata_key);
             return Err(ProgramError::InvalidAccountData); 
         }
         
@@ -181,7 +181,7 @@ impl Processor {
 
         // the third and final account is the system_program
         if system_program_account_info.key != &solana_program::system_program::id() {
-            msg!("expected fourth account to be the system program {}", solana_program::system_program::id());
+            msg!("expected third account to be the system program {}", solana_program::system_program::id());
             return Err(ProgramError::InvalidAccountData);
         }
         

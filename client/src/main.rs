@@ -321,7 +321,7 @@ fn update_status(key_file : &String, user_address : &String, status_code : u8, l
     let user_pubkey = Pubkey::from_str(user_address).unwrap();
 
 
-    let (expected_userdata_key, _bump_seed) = Pubkey::find_program_address(&[&wallet.pubkey().to_bytes()], &program_address);
+    let (expected_userdata_key, _bump_seed) = Pubkey::find_program_address(&[&user_pubkey.to_bytes()], &program_address);
 
     let meta_data =  StatusMeta{user_pubkey : user_pubkey, status_code : status_code, log_message : log_message.to_string()};
 
