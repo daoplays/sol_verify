@@ -108,7 +108,8 @@ impl Processor {
             state::get_userdata_size()
         )?;
 
-        let log_message = "accounts created".to_string();
+        let log_array = ["Program", &metadata.address.to_string(), ": accounts created"];
+        let log_message = (log_array.join(" ")).to_string();
         let log_message_bytes = log_message.as_bytes();
 
         let s = match str::from_utf8(log_message_bytes) {
