@@ -4,6 +4,8 @@ The program is currently in early-access mode and a front end can be found at da
 
 To do:
 
+0) Test and catch errors that occur during the verification process
+
 1) Add support for specifying components of a docker image (ie rust version, solana version etc) rather than just selecting a docker image.  The backend would then build the required docker image itself.
 
 2) Handle the case that different users try and verify the same program:
@@ -20,3 +22,7 @@ To do:
 6) Add support for non git based code repositories
 
 7) Add support for non rust based programs
+
+8) Support main-net apps
+
+9) Integrate into explorers
