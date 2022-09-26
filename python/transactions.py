@@ -10,9 +10,12 @@ import json
 import base58
 import time
 import copy
+import git
+import os
 
 from rpc_funcs import *
 from state import *
+from codes import *
 
 def load_key(filename):
 	skey = open(filename).readlines()[0][1:-1].split(",")
@@ -28,24 +31,62 @@ def load_config(filename):
     
     return json.load(open(filename))["config"]
 
-def write_config_file(args, user_pubkey, doicker_count):
+def lsremote(url):
+
+    remote_refs = {}
+
+    g = git.cmd.Git()
+
+    for ref in g.ls_remote(url).split('\n'):
+        hash_ref_list = ref.split('\t')
+        remote_refs[hash_ref_list[1]] = hash_ref_list[0]
+
+    return remote_refs
+
+def check_args(dev_client, user_pubkey, args):
+
+    program_string = (base58.b58encode(bytearray(args.address))).decode("utf-8")
+
+    if (not check_address_exists(dev_client, args.address)):
+        update_idx = get_update_state_idx(user_pubkey, PROGRAM_DOESNT_EXIST, "Program " + program_string + " : address '" + program_string + "' does not exist or has no lamports")
+        send_transaction(dev_client, [update_idx])
+        return False
+
+    try:
+        remote = lsremote(args.git_repo)
+    except:
+        update_idx = get_update_state_idx(user_pubkey, GIT_REPO_DOESNT_EXIST, "Program " + program_string + " : git repo '" + args.git_repo + "' does not exist or inaccessible")
+        send_transaction(dev_client, [update_idx])
+        return False
+
+    return remote
+
+
+def write_config_file(args, user_pubkey, docker_count):
 
     program_string = (base58.b58encode(bytearray(args.address))).decode("utf-8")
     config_name = "verify_run_script_" + str(docker_count) + ".sh"
 
     f = open(config_name, "w")
 
-    f.write("git clone " + args.git_repo + " test_repo\n")
-    f.write("git clone https://github.com/daoplays/sol_verify.git\n")
+    f.write("git clone " + args.git_repo + " test_repo > /root/logfile.txt\n")
+    f.write("git clone https://github.com/daoplays/sol_verify.git >> /root/logfile.txt\n")
 
     f.write("cd /sol_verify/client\n")
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : sol_verify built, airdropping funds'\n")
 
-    f.write("solana airdrop 2\n")
-    f.write("solana airdrop 2\n")
+    # to avoid rate limits create a new pubkey, airdrop to there and then transfer over
+    f.write("solana-keygen new -o temp.json --no-bip39-passphrase\n")
+    f.write("solana airdrop 2 temp.json\n")
+    f.write("solana airdrop 2 temp.json\n")
+    f.write("solana transfer --from temp.json /root/.config/solana/id.json 3.99\n")
+
+    # check the provided directory exists
+    f.write("[ ! -d \"/test_repo/" + args.directory + "\" ] && cd /sol_verify/client && cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 102 \"Program " + program_string + " : directory " + args.directory + " doesn't exist in repo\" && exit 1\n")
+  
 
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : cloning program repo and building program'\n")
-  
+
     f.write("cd /test_repo\n")
     f.write("git checkout " + args.git_commit + "\n")
     f.write("cd " + args.directory + "\n")
@@ -73,7 +114,7 @@ def check_for_finished_dockers(dev_client, dockers):
 
     for key in keys:
         status_code = check_user_status_code(dev_client, key)
-        if status_code == 1:
+        if status_code == 1 or status_code >= 100:
             log_db("Found finished docker for " + key)
             subprocess.run(["../docker/stop.sh "+str(dockers[key])], shell=True)
             new_dockers.pop(key)
@@ -81,6 +122,26 @@ def check_for_finished_dockers(dev_client, dockers):
         time.sleep(1)
 
     return new_dockers
+
+def check_address_exists(dev_client, address):
+
+    try:
+        response = dev_client.get_account_info(PublicKey(address))
+    except :
+        log_error("unable to get program account: " +  str(address))
+        return False
+
+    if "result" not in response.keys():
+        log_error("result field not in json :")
+        print(response)
+        return False
+
+    lamports = response["result"]["value"]["lamports"]
+
+    if lamports > 0:
+        return True
+    
+    return False
 
 def check_meta_data_account(dev_client, program_address):
     config = load_config("config.json")

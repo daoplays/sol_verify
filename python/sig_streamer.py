@@ -44,7 +44,13 @@ while(True):
                 if (isinstance(args, Verifier_Instructions.enum.SubmitProgram)):
 
                     if (user_pubkey in dockers.keys()):
-                        log_error("already running docker for user ", user_pubkey)
+                        log_error("already running docker for user " + str(user_pubkey))
+                        continue
+
+                    # check that the args are valid
+                    if (not check_args(dev_client, user_pubkey, args)):
+                        log_error("invalid arguments:")
+                        print_submit_meta(args)
                         continue
 
 
