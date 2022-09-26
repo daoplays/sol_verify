@@ -90,14 +90,27 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("cd /test_repo\n")
 
     #check the commit given is valid
-    f.write("if ! git cat-file -e " + args.commit + "^{commit}; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 103 \"Program " + program_string + " : commit " + args.commit + " doesn't exist in repo\"; exit 1; fi\n")
+    f.write("if ! git cat-file -e " + args.git_commit + "^{commit}; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 103 \"Program " + program_string + " : commit " + args.git_commit + " doesn't exist in repo\"; exit 1; fi\n")
 
 
     f.write("git checkout " + args.git_commit + "\n")
     f.write("cd " + args.directory + "\n")
 
-    f.write("cargo build-bpf\n")
-    f.write("solana program deploy target/deploy/*.so\n")
+    # check if this is a rust project
+    f.write("if [ ! -f Cargo.toml ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 104 \"Program " + program_string + " : SolVerify currently only supports rust projects and Cargo.toml not found in repo\"; exit 1; fi")
+
+    # check if this is an anchor project
+    f.write("if [ -f Anchor.toml ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 104 \"Program " + program_string + " : SolVerify currently doesn't support Anchor projects, this is the next feature!\"; exit 1; fi")
+
+
+    # the --generate-child-script-on-failure option will output a file we can look for if the build fails
+    f.write("cargo build-bpf --generate-child-script-on-failure\n")
+
+    # check if the build failed
+    f.write("if [ -f cargo-build-sbf-child-script-cargo.sh ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 105 \"Program " + program_string + " : cargo build-sbf failed\"; exit 1; fi")
+
+    # deploy the program
+    f.write("solana program deploy target/deploy/*.so --commitment finalized\n")
     f.write("cd /sol_verify/client\n")
 
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : running verification'\n")
