@@ -88,6 +88,11 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : cloning program repo and building program'\n")
 
     f.write("cd /test_repo\n")
+
+    #check the commit given is valid
+    f.write("if ! git cat-file -e " + args.commit + "^{commit}; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 103 \"Program " + program_string + " : commit " + args.commit + " doesn't exist in repo\"; exit 1; fi\n")
+
+
     f.write("git checkout " + args.git_commit + "\n")
     f.write("cd " + args.directory + "\n")
 

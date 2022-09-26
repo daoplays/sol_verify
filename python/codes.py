@@ -8,3 +8,4 @@ MATCH = 3 # the code matches and the program can't be upgraded
 PROGRAM_DOESNT_EXIST = 100
 GIT_REPO_DOESNT_EXIST = 101
 GIT_DIR_DOESNT_EXIST = 102
+GIT_COMMIT_DOESNT_EXIST = 103
