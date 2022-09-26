@@ -4,7 +4,7 @@ The program is currently in early-access mode and a front end can be found at da
 
 To do:
 
-0) Test and catch errors that occur during the verification process
+0) Add support for Anchor rust projects
 
 1) Add support for specifying components of a docker image (ie rust version, solana version etc) rather than just selecting a docker image.  The backend would then build the required docker image itself.
 
