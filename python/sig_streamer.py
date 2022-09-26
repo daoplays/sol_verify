@@ -1,6 +1,4 @@
-from pkgutil import get_data
 from solana.rpc.api import Client
-import concurrent.futures as cf
 import numpy as np
 import time
 import subprocess
@@ -53,7 +51,7 @@ while(True):
                     dockers[user_pubkey] = docker_count
                     print("have Submit:")
                     print_submit_meta(args)
-                    write_config_file(args, user_pubkey)
+                    write_config_file(args, user_pubkey, docker_count)
                     update_idx = get_update_state_idx(user_pubkey, 0, "Program " + program_string + " : creating docker container")
                     send_transaction(dev_client, [update_idx])
                     subprocess.run("../docker/build.sh", shell=True)

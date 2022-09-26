@@ -1,21 +1,18 @@
-from solana.rpc.api import Client
 import solana.system_program as sp
 from solana.publickey import PublicKey
-from solana.account import Account
 from solana.transaction import Transaction, TransactionInstruction, AccountMeta
 from solana.rpc.types import TxOpts
 import solana as sol
 import subprocess
 import base64
 import numpy as np
-import tweepy
-import datetime
 import json
-from rpc_funcs import *
-from state import *
 import base58
 import time
 import copy
+
+from rpc_funcs import *
+from state import *
 
 def load_key(filename):
 	skey = open(filename).readlines()[0][1:-1].split(",")
@@ -31,11 +28,12 @@ def load_config(filename):
     
     return json.load(open(filename))["config"]
 
-def write_config_file(args, user_pubkey):
+def write_config_file(args, user_pubkey, doicker_count):
 
     program_string = (base58.b58encode(bytearray(args.address))).decode("utf-8")
+    config_name = "verify_run_script_" + str(docker_count) + ".sh"
 
-    f = open("verify_run_script.sh", "w")
+    f = open(config_name, "w")
 
     f.write("git clone " + args.git_repo + " test_repo\n")
     f.write("git clone https://github.com/daoplays/sol_verify.git\n")
@@ -59,11 +57,14 @@ def write_config_file(args, user_pubkey):
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : running verification'\n")
 
     f.write("sleep 30\n")
-    f.write("cargo run /root/.config/solana/id.json verify /test_repo/charity_auction/program/target/deploy/*-keypair.json " + program_string + "\n")
+    f.write("cargo run /root/.config/solana/id.json verify /test_repo/" +  args.directory + "/target/deploy/*-keypair.json " + program_string + "\n")
+
 
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 1 'Program " + program_string + " : verification complete'\n")
 
     f.close()
+    
+    subprocess.run(["chmod", "777", config_name])
 
 def check_for_finished_dockers(dev_client, dockers):
 
@@ -73,7 +74,7 @@ def check_for_finished_dockers(dev_client, dockers):
     for key in keys:
         status_code = check_user_status_code(dev_client, key)
         if status_code == 1:
-            log_info("Found finished docker for " + key)
+            log_db("Found finished docker for " + key)
             subprocess.run(["../docker/stop.sh "+str(dockers[key])], shell=True)
             new_dockers.pop(key)
 
@@ -81,13 +82,27 @@ def check_for_finished_dockers(dev_client, dockers):
 
     return new_dockers
 
+def check_meta_data_account(dev_client, program_address):
+    config = load_config("config.json")
+    
+    meta_account, _user_bump = PublicKey.find_program_address([bytes(PublicKey(program_address))], PublicKey(PROGRAM_KEY))
+
+    print("address ", meta_account)
+
+    response = dev_client.get_account_info(meta_account)
+
+    data = response["result"]["value"]["data"][0]
+    decoded_data = base64.b64decode(data)
+
+    return decoded_data
+
 def check_user_status_code(dev_client, user_account_key):
     config = load_config("config.json")
     wallet = load_key(config["wallet"])
     
     user_account, _user_bump = PublicKey.find_program_address([bytes(PublicKey(user_account_key))], PublicKey(PROGRAM_KEY))
 
-    log_info("Find program address for " + str(user_account_key) + " " +  str(user_account))
+    log_db("Find program address for " + str(user_account_key) + " " +  str(user_account))
     
     try :
 
@@ -115,7 +130,7 @@ def get_update_state_idx(user_account_key, status_code, log_message):
     #status_meta = StatusMeta.build({"address" : PublicKey(user_account_key), "status_code": status_code, "log_message" : log_message})
 
     instruction = TransactionInstruction(
-        program_id = PROGRAM_KEY,
+        program_id = PublicKey(PROGRAM_KEY),
         data = Verifier_Instructions.build(Verifier_Instructions.enum.UpdateStatus(bytes(PublicKey(user_account_key)), status_code, log_message)),
         keys = [
             AccountMeta(pubkey=wallet.public_key, is_signer=True, is_writable=True),

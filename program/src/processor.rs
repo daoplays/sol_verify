@@ -282,7 +282,7 @@ impl Processor {
         let mut upgradeable : bool = false;
         match real_meta {
             UpgradeableLoaderState::ProgramData{slot, upgrade_authority_address} => upgrade_authority = upgrade_authority_address,
-            _ => println!("Account not upgradeable"),
+            _ => msg!("Account not upgradeable"),
         }
     
         if upgrade_authority.is_some() {
