@@ -4,8 +4,6 @@ The program is currently in early-access mode and a front end can be found at da
 
 To do:
 
-0) Add support for Anchor rust projects
-
 1) Handle the case that different users try and verify the same program:
     if a program hasn't passed a verification just let anyone try
     if a program has passed verification, but is upgradeable and has been upgraded since the last verification, set to unverified and allow anyone to try
