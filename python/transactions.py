@@ -97,17 +97,17 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("cd " + args.directory + "\n")
 
     # check if this is a rust project
-    f.write("if [ ! -f Cargo.toml ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 104 \"Program " + program_string + " : SolVerify currently only supports rust projects and Cargo.toml not found in repo\"; exit 1; fi")
+    f.write("if [ ! -f Cargo.toml ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 104 \"Program " + program_string + " : SolVerify currently only supports rust projects and Cargo.toml not found in repo\"; exit 1; fi\n")
 
     # check if this is an anchor project
-    f.write("if [ -f Anchor.toml ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 104 \"Program " + program_string + " : SolVerify currently doesn't support Anchor projects, this is the next feature!\"; exit 1; fi")
+    f.write("if [ -f Anchor.toml ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 104 \"Program " + program_string + " : SolVerify currently doesn't support Anchor projects, this is the next feature!\"; exit 1; fi\n")
 
 
     # the --generate-child-script-on-failure option will output a file we can look for if the build fails
     f.write("cargo build-bpf --generate-child-script-on-failure\n")
 
     # check if the build failed
-    f.write("if [ -f cargo-build-sbf-child-script-cargo.sh ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 105 \"Program " + program_string + " : cargo build-sbf failed\"; exit 1; fi")
+    f.write("if [ -f cargo-build-sbf-child-script-cargo.sh ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 105 \"Program " + program_string + " : cargo build-sbf failed\"; exit 1; fi\n")
 
     # deploy the program
     f.write("solana program deploy target/deploy/*.so --commitment finalized\n")
