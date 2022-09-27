@@ -133,23 +133,39 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("git checkout " + args.git_commit + "\n")
     f.write("cd /test_repo/" + args.directory + "\n")
 
-    # check if this is a rust project
-    f.write("if [ ! -f Cargo.toml ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 104 \"Program " + program_string + " : SolVerify currently only supports rust projects and Cargo.toml not found in repo\"; exit 1; fi\n")
+    # if neither Cargo.toml or makefile exist in the current directory we can't do anything
+    f.write("if [ ! -f Cargo.toml ] && [ ! -f makefile ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 104 \"Program " + program_string + " : Neither makefile nor Cargo.toml found to build project in " + args.directory + "\"; exit 1; fi\n")
 
-    # the --generate-child-script-on-failure option will output a file we can look for if the build fails
-    f.write("cargo build-bpf --generate-child-script-on-failure\n")
+
+    # a rust project will produce the .so in target/deploy, so set that as the default
+    f.write("export OUTDIR=\"target/deploy\"\n")
+
+    # if we are a rust program then Cargo.toml exists, so build and check the build
+    f.write("if [ -f Cargo.toml ]; then cargo build-bpf --generate-child-script-on-failure; fi\n")
 
     # check if the build failed
     f.write("if [ -f cargo-build-sbf-child-script-cargo.sh ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 105 \"Program " + program_string + " : cargo build-sbf failed\"; exit 1; fi\n")
 
+    # if this is a c program then makefile exists, and we will need to get OUTDIR from the makefile
+    f.write("if [ -f makefile ]; then make; export OUTDIR=\"$(grep OUT_DIR makefile  | sed 's:.*=::')\"; fi\n")
+
+    # if OUTDIR is empty now then it didn't exist in the makefile, so throw an error
+    f.write("if [ -z \"${OUTDIR}\" ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 108 \"Program " + program_string + " : OUT_DIR not present in makefile\"; exit 1; fi\n")
+
+    # as a last sanity check make sure that the .so is there
+    f.write("if [ ! -f $OUTDIR/*.so ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 105 \"Program " + program_string + " : build failed to produce .so in $OUTDIR\"; exit 1; fi\n")
+
+    # in case OUTDIR was specified as a relative path, get the absolute path
+    f.write("export ABSDIR=$(realpath $OUTDIR)\n")
+
     # deploy the program
-    f.write("solana program deploy target/deploy/*.so --commitment finalized\n")
+    f.write("solana program deploy $OUTDIR/*.so --commitment finalized\n")
     f.write("cd /sol_verify/client\n")
 
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : running verification'\n")
 
     f.write("sleep 30\n")
-    f.write("cargo run /root/.config/solana/id.json verify /test_repo/" +  args.directory + "/target/deploy/*-keypair.json " + program_string + "\n")
+    f.write("cargo run /root/.config/solana/id.json verify $ABSDIR/*-keypair.json " + program_string + "\n")
 
 
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 1 'Program " + program_string + " : verification complete'\n")
