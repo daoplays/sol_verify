@@ -113,10 +113,10 @@ fn submit_program(key_file: &String) ->Result<()> {
     // (3) Create RPC client to be used to talk to Solana cluster
     let client = RpcClient::new(URL);
 
-    let real_address = Pubkey::from_str("7EGMFCt38NyXZHsR7G3JeBgMkNPhGF3z8g1pVLEXPA8Y").unwrap();
-    let git_repo = "https://github.com/daoplays/solana_examples.git".to_string();
-    let git_commit = "f3dd81928e49299f04070dfc58dd5cd3dd48a682".to_string();
-    let directory = "charity_auction/program".to_string();
+    let real_address = Pubkey::from_str("5iYtT98ucBf5oVC2PicVTHLqFWgCw2CeBQePn9Zg9PWQ").unwrap();
+    let git_repo = "https://github.com/daoplays/sol_verify".to_string();
+    let git_commit = "2ffa01a8b35332690c931372e9d559bfd53375fc".to_string();
+    let directory = "program".to_string();
     let docker_version = "".to_string();
     let rust_version = "1.62".to_string();
     let solana_version = "1.10.39".to_string();

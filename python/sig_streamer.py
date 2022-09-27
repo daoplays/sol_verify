@@ -65,10 +65,17 @@ while(True):
                     update_idx = get_update_state_idx(user_pubkey, 0, "Program " + program_string + " : creating docker container")
                     send_transaction(dev_client, [update_idx])
 
-                    subprocess.run("../docker/build.sh " + str(docker_count), shell=True)
+                    try:
+                        subprocess.run("../docker/build.sh " + str(docker_count), shell=True, check=True)
+                    except:
+                        log_error("build failed!")
+                        update_idx = get_update_state_idx(user_pubkey, DOCKER_BUILD_FAILED, "Program " + program_string + " : docker build failed to complete, check version numbers are valid")
+                        send_transaction(dev_client, [update_idx])
+                        continue
+
                     update_idx = get_update_state_idx(user_pubkey, 0, "Program " + program_string + " : clone and build sol_verify repo")
                     send_transaction(dev_client, [update_idx])
-                    exit()
+
                     time.sleep(5)
                     subprocess.run(["../docker/run.sh " + str(docker_count)], shell=True)
                     docker_count += 1

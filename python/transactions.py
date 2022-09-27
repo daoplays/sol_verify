@@ -89,9 +89,11 @@ def write_docker_file(dev_client, user_pubkey, args, docker_count):
 
     f.write("FROM rust:" + build_environ.rust_version + "\n")
 
-    f.write("RUN sh -c \"$(curl -sSfL https://release.solana.com/v" + build_environ.solana_version + "/install)\"\n")
+    f.write("RUN sh -c \"$(curl -sSL https://release.solana.com/v" + build_environ.solana_version + "/install)\"\n")
     f.write("ENV PATH=\"${PATH}:/root/.local/share/solana/install/active_release/bin\"\n")
-    f.write("RUN cargo install --git https://github.com/project-serum/anchor --tag v" + build_environ.anchor_version + " anchor-cli --locked\n")
+
+    if (build_environ.anchor_version != None):
+        f.write("RUN cargo install --git https://github.com/project-serum/anchor --tag v" + build_environ.anchor_version + " anchor-cli --locked\n")
 
     f.write("RUN solana config set --url https://api.devnet.solana.com\n")
 
