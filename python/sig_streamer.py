@@ -57,12 +57,18 @@ while(True):
                     dockers[user_pubkey] = docker_count
                     print("have Submit:")
                     print_submit_meta(args)
+                   
                     write_config_file(args, user_pubkey, docker_count)
+                    if (not write_docker_file(dev_client, user_pubkey, args, docker_count)):
+                        continue
+
                     update_idx = get_update_state_idx(user_pubkey, 0, "Program " + program_string + " : creating docker container")
                     send_transaction(dev_client, [update_idx])
-                    subprocess.run("../docker/build.sh", shell=True)
+
+                    subprocess.run("../docker/build.sh " + str(docker_count), shell=True)
                     update_idx = get_update_state_idx(user_pubkey, 0, "Program " + program_string + " : clone and build sol_verify repo")
                     send_transaction(dev_client, [update_idx])
+                    exit()
                     time.sleep(5)
                     subprocess.run(["../docker/run.sh " + str(docker_count)], shell=True)
                     docker_count += 1

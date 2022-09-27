@@ -61,6 +61,41 @@ def check_args(dev_client, user_pubkey, args):
 
     return remote
 
+def write_docker_file(dev_client, user_pubkey, args, docker_count):
+
+    program_string = (base58.b58encode(bytearray(args.address))).decode("utf-8")
+
+    if (args.docker_version == ""):
+
+        build_environ = build_environment_t()
+        build_environ.build_from_args(args)
+
+    else:
+
+        if (args.docker_version not in BUILD_ENVIRONMENT_MAP.keys()):
+
+            log_error("dockerfile " + str(args.docker_version) + " not found in map")
+
+            update_idx = get_update_state_idx(user_pubkey, DOCKER_DOESNT_EXIST, "Program " + program_string + " : unknown docker " + args.docker_version)
+            send_transaction(dev_client, [update_idx])
+
+            return False
+            
+        build_environ = BUILD_ENVIRONMENT_MAP[args.docker_version]
+
+    dockerfile = "../docker/verify_" + str(docker_count) + ".dockerfile"
+
+    f = open(dockerfile, "w")
+
+    f.write("FROM rust:" + build_environ.rust_version + "\n")
+
+    f.write("RUN sh -c \"$(curl -sSfL https://release.solana.com/v" + build_environ.solana_version + "/install)\"\n")
+    f.write("ENV PATH=\"${PATH}:/root/.local/share/solana/install/active_release/bin\"\n")
+    f.write("RUN cargo install --git https://github.com/project-serum/anchor --tag v" + build_environ.anchor_version + " anchor-cli --locked\n")
+
+    f.write("RUN solana config set --url https://api.devnet.solana.com\n")
+
+    return True
 
 def write_config_file(args, user_pubkey, docker_count):
 
@@ -69,8 +104,8 @@ def write_config_file(args, user_pubkey, docker_count):
 
     f = open(config_name, "w")
 
-    f.write("git clone " + args.git_repo + " test_repo > /root/logfile.txt\n")
-    f.write("git clone https://github.com/daoplays/sol_verify.git >> /root/logfile.txt\n")
+    f.write("git clone " + args.git_repo + " test_repo\n")
+    f.write("git clone https://github.com/daoplays/sol_verify.git\n")
 
     f.write("cd /sol_verify/client\n")
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : sol_verify built, airdropping funds'\n")

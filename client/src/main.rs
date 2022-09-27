@@ -20,7 +20,7 @@ use sha2::{Sha256, Digest};
 
 
 // some globals
-const PROGRAM_KEY : &str = "4xTTRRsDAjme4JoZxQ87czQvmstZ6onJJdNAQXpPw9PA";
+const PROGRAM_KEY : &str = "5iYtT98ucBf5oVC2PicVTHLqFWgCw2CeBQePn9Zg9PWQ";
 
 const SOLANA_DEV: &str = "https://api.devnet.solana.com";
 
@@ -117,7 +117,12 @@ fn submit_program(key_file: &String) ->Result<()> {
     let git_repo = "https://github.com/daoplays/solana_examples.git".to_string();
     let git_commit = "f3dd81928e49299f04070dfc58dd5cd3dd48a682".to_string();
     let directory = "charity_auction/program".to_string();
-    let docker_version = "solana_v1.1.14".to_string();
+    let docker_version = "".to_string();
+    let rust_version = "1.62".to_string();
+    let solana_version = "1.10.39".to_string();
+    let anchor_version = "0.25.0".to_string();
+
+
 
     let program_address = Pubkey::from_str(PROGRAM_KEY).unwrap();
 
@@ -125,7 +130,16 @@ fn submit_program(key_file: &String) ->Result<()> {
 
     let (expected_userdata_key, _bump_seed) = Pubkey::find_program_address(&[&wallet.pubkey().to_bytes()], &program_address);
 
-    let meta_data =  SubmitProgramMeta{address: real_address, git_repo : git_repo, git_commit : git_commit, directory : directory, docker_version : docker_version };
+    let meta_data =  SubmitProgramMeta{
+        address: real_address, 
+        git_repo : git_repo, 
+        git_commit : git_commit, 
+        directory : directory, 
+        docker_version : docker_version,
+        rust_version : rust_version,
+        solana_version : solana_version,
+        anchor_version : anchor_version
+    };
 
 
     let instruction = Instruction::new_with_borsh(
@@ -136,8 +150,6 @@ fn submit_program(key_file: &String) ->Result<()> {
             AccountMeta::new(expected_metadata_key, false),
             AccountMeta::new(expected_userdata_key, false),
             AccountMeta::new_readonly(solana_sdk::system_program::id(), false)
-
-
         ],
     );
 

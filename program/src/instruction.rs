@@ -10,7 +10,10 @@ pub struct SubmitProgramMeta {
     pub git_repo : String,
     pub git_commit : String,
     pub directory : String,
-    pub docker_version : String
+    pub docker_version : String,
+    pub rust_version : String,
+    pub solana_version : String,
+    pub anchor_version : String
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]

@@ -1046,7 +1046,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana_verify_v03"
+name = "solana_verify_v04"
 version = "0.1.0"
 dependencies = [
  "arrayref",
