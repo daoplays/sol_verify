@@ -2,11 +2,18 @@ use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use borsh::{BorshDeserialize, BorshSerialize};
 use crate::error::DaoPlaysError::InvalidInstruction;
 
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
+pub enum Network {
+    TestNet,
+    DevNet,
+    MainNet
+}
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
 pub struct SubmitProgramMeta {
     // the amount of supporter tokens to be sent to the user
     pub address : Pubkey,
+    pub network : Network,
     pub git_repo : String,
     pub git_commit : String,
     pub directory : String,
@@ -19,7 +26,7 @@ pub struct SubmitProgramMeta {
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
 pub struct VerifyProgramMeta {
     // the amount of supporter tokens to be sent to the user
-    pub verified : bool,
+    pub verified_code : u8,
     pub real_address : Pubkey,
     pub test_address : Pubkey,
     pub data_hash : [u8; 32],
@@ -58,7 +65,7 @@ impl VerifyInstruction {
             1 => Self::VerifyProgram  {
                 metadata: VerifyProgramMeta::try_from_slice(&rest)?,
             },
-            1 => Self::UpdateStatus  {
+            2 => Self::UpdateStatus  {
                 metadata: StatusMeta::try_from_slice(&rest)?,
             },
             _ => return Err(InvalidInstruction.into()),

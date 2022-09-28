@@ -1,8 +1,6 @@
 use std::str;
-use std::thread::current;
-use crate::state::{ProgramMetaData, UserMetaData};
+use crate::state::{ProgramMetaData};
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::native_token::LAMPORTS_PER_SOL;
 use crate::accounts;
 use crate::utils;
 use crate::state;
@@ -12,8 +10,7 @@ use solana_program::{
     entrypoint::ProgramResult,
     program_error::ProgramError,
     msg,
-    pubkey::Pubkey,
-    bpf_loader_upgradeable::{self, UpgradeableLoaderState}
+    pubkey::Pubkey
 };
 
 use crate::{instruction::{VerifyInstruction, SubmitProgramMeta, VerifyProgramMeta, StatusMeta}};
@@ -221,11 +218,6 @@ impl Processor {
         let real_program_account_info = next_account_info(account_info_iter)?;
         let test_program_account_info = next_account_info(account_info_iter)?;
 
-        let real_program_data_account_info = next_account_info(account_info_iter)?;
-        let test_program_data_account_info = next_account_info(account_info_iter)?;
-
-
-
         // the first account should be the funding account and should be a signer
         if !dao_plays_account_info.is_signer {
             msg!("expected first account as signer");
@@ -255,59 +247,15 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData); 
         }
 
-        let data_offset = UpgradeableLoaderState::size_of_programdata_metadata();
-
-        let real_program_data = &real_program_data_account_info.data.borrow()[data_offset..];
-        let test_program_data = &test_program_data_account_info.data.borrow()[data_offset..];
-
-
-        if real_program_data.len() < data_offset {
-            msg!("Account is too small to be a program data account");
-            return Err(ProgramError::InvalidAccountData); 
-        }
-
-        if test_program_data.len() < data_offset {
-            msg!("Account is too small to be a program data account");
-            return Err(ProgramError::InvalidAccountData); 
-        }
-
-
-        // check if the program is upgradeable
-
-        let real_meta : UpgradeableLoaderState = bincode::deserialize_from(&real_program_data_account_info.data.borrow()[..data_offset]).unwrap();
-
-        msg!("data_buffer {:?}", real_meta);
-
-        let mut upgrade_authority = None;
-        let mut upgradeable : bool = false;
-        match real_meta {
-            UpgradeableLoaderState::ProgramData{slot, upgrade_authority_address} => upgrade_authority = upgrade_authority_address,
-            _ => msg!("Account not upgradeable"),
-        }
-    
-        if upgrade_authority.is_some() {
-            upgradeable = true;
-        }
 
         let mut current_state = ProgramMetaData::try_from_slice(&program_metadata_account_info.data.borrow()[..])?;
 
-        if !metadata.verified {
-            current_state.verified_code = 1;
-        }
-
-        if metadata.verified && upgradeable {
-            current_state.verified_code  = 2;
-        }
-
-        if metadata.verified && !upgradeable {
-            current_state.verified_code  = 3;
-        }
-
+        current_state.verified_code = metadata.verified_code;
         current_state.test_address = metadata.test_address;
         current_state.last_verified_slot = metadata.verified_slot;
         current_state.data_hash = metadata.data_hash;
 
-        msg!("have hash {:?}", metadata.data_hash);
+        msg!("current_state {:?}", current_state);
         
         current_state.serialize(&mut &mut program_metadata_account_info.data.borrow_mut()[..])?;
 
