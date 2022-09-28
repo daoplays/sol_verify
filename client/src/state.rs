@@ -24,11 +24,19 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Copy)]
+pub enum Network {
+    TestNet,
+    DevNet,
+    MainNet,
+    Invalid
+}
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
 pub struct SubmitProgramMeta {
     // the amount of supporter tokens to be sent to the user
     pub address : Pubkey,
+    pub network : Network,
     pub git_repo : String,
     pub git_commit : String,
     pub directory : String,
@@ -41,7 +49,7 @@ pub struct SubmitProgramMeta {
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
 pub struct VerifyProgramMeta {
     // the amount of supporter tokens to be sent to the user
-    pub verified : bool,
+    pub verified_code : u8,
     pub real_address : Pubkey,
     pub test_address : Pubkey,
     pub data_hash : [u8; 32],

@@ -1,7 +1,7 @@
 
 pub mod state;
 
-use crate::state::{Result, SubmitProgramMeta, VerifyInstruction, VerifyProgramMeta, ProgramMetaData, StatusMeta};
+use crate::state::{Result, SubmitProgramMeta, VerifyInstruction, VerifyProgramMeta, ProgramMetaData, StatusMeta, Network};
 
 use std::{env, io::BufRead};
 use std::str::FromStr;
@@ -22,9 +22,32 @@ use sha2::{Sha256, Digest};
 // some globals
 const PROGRAM_KEY : &str = "5iYtT98ucBf5oVC2PicVTHLqFWgCw2CeBQePn9Zg9PWQ";
 
+const SOLANA_TEST: &str = "https://api.testnet.solana.com";
 const SOLANA_DEV: &str = "https://api.devnet.solana.com";
+const SOLANA_MAIN: &str = "https://api.mainnet-beta.solana.com";
+
 
 const URL: &str = SOLANA_DEV;
+
+fn u8_to_network(index :  u8) ->  Network 
+{
+    match index {
+        0 => Network::TestNet,
+        1 => Network::DevNet,
+        2 => Network::MainNet,
+        _ => Network::Invalid
+    }
+}
+
+fn network_to_u8(network :  Network) ->  u8 
+{
+    match network {
+        Network::TestNet => 0,
+        Network::DevNet => 1,
+        Network::MainNet => 2,
+        Network::Invalid => 3
+    }
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -43,8 +66,16 @@ fn main() {
 
         let test_key_file = &args[3];
         let real_address = &args[4];
+        let network_arg = &args[5];
+        let network_u8: u8 = network_arg.parse().unwrap();
+        let network = u8_to_network(network_u8);
 
-        if let Err(err) = verify_program(key_file, test_key_file, real_address) {
+        if network == Network::Invalid {
+            println!("invalid network");
+            std::process::exit(1);
+        }
+
+        if let Err(err) = verify_program(key_file, test_key_file, real_address, network) {
             eprintln!("{:?}", err);
             std::process::exit(1);
         }
@@ -114,6 +145,7 @@ fn submit_program(key_file: &String) ->Result<()> {
     let client = RpcClient::new(URL);
 
     let real_address = Pubkey::from_str("5iYtT98ucBf5oVC2PicVTHLqFWgCw2CeBQePn9Zg9PWQ").unwrap();
+    let network = Network::DevNet;
     let git_repo = "https://github.com/daoplays/sol_verify".to_string();
     let git_commit = "2ffa01a8b35332690c931372e9d559bfd53375fc".to_string();
     let directory = "program".to_string();
@@ -132,6 +164,7 @@ fn submit_program(key_file: &String) ->Result<()> {
 
     let meta_data =  SubmitProgramMeta{
         address: real_address, 
+        network : network,
         git_repo : git_repo, 
         git_commit : git_commit, 
         directory : directory, 
@@ -172,8 +205,17 @@ fn submit_program(key_file: &String) ->Result<()> {
     Ok(println!("Success!"))
 }
 
+fn get_program_client(network : Network) -> RpcClient {
 
-fn verify_program(key_file: &String, test_key_file: &String, real_address_string: &String) ->Result<()> {
+    match network {
+        Network::TestNet => RpcClient::new(SOLANA_TEST),
+        Network::DevNet => RpcClient::new(SOLANA_DEV),
+        Network::MainNet => RpcClient::new(SOLANA_MAIN),
+        Network::Invalid => RpcClient::new(SOLANA_TEST),
+    }
+}
+
+fn verify_program(key_file: &String, test_key_file: &String, real_address_string: &String, network : Network) ->Result<()> {
 
     // (2) Create a new Keypair for the new account
     let wallet = read_keypair_file(key_file).unwrap();
@@ -182,6 +224,8 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
 
     // (3) Create RPC client to be used to talk to Solana cluster
     let client = RpcClient::new(URL);
+
+    let program_client = get_program_client(network);
 /*
    
     let security_txt = solana_security_txt::find_and_parse(program_data).unwrap();
@@ -194,7 +238,7 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
     let test_address = test_keypair.pubkey();
     let program_address = Pubkey::from_str(PROGRAM_KEY).unwrap();
 
-    let real_program_account = client.get_account(&real_address)?;
+    let real_program_account = program_client.get_account(&real_address)?;
     let test_program_account = client.get_account(&test_address)?;
 
     if !bpf_loader_upgradeable::check_id(&real_program_account.owner) {
@@ -230,7 +274,7 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
         return Ok(());
     };
 
-    let real_program_data_account = client.get_account(&real_program_data_address)?;
+    let real_program_data_account = program_client.get_account(&real_program_data_address)?;
     let test_program_data_account = client.get_account(&test_program_data_address)?;
 
     let data_offset = UpgradeableLoaderState::programdata_data_offset().unwrap();
@@ -252,12 +296,40 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
 
     println!("verified {}", verified);
 
+
+    let real_meta : UpgradeableLoaderState = bincode::deserialize_from(&real_program_data_account.data[..data_offset]).unwrap();
+
+    println!("data_buffer {:?}", real_meta);
+
+    let mut upgrade_authority = None;
+    let mut upgradeable : bool = false;
+    match real_meta {
+        UpgradeableLoaderState::ProgramData{slot, upgrade_authority_address} => upgrade_authority = upgrade_authority_address,
+        _ => println!("Account not upgradeable"),
+    }
+
+    if upgrade_authority.is_some() {
+        upgradeable = true;
+    }
+
+    let mut verified_code : u8 = 1;
+    if !verified {
+        verified_code = 1;
+    }
+
+    if verified && upgradeable {
+        verified_code  = 2;
+    }
+
+    if verified && !upgradeable {
+        verified_code  = 3;
+    }
+
+    let current_slot = program_client.get_slot()?;
+
     let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&real_address.to_bytes()], &program_address);
 
-    let current_slot = client.get_slot()?;
-
-    let meta_data =  VerifyProgramMeta{verified: verified, real_address : real_address, test_address : test_address, data_hash : test_hash, verified_slot : current_slot };
-
+    let meta_data =  VerifyProgramMeta{verified_code: verified_code, real_address : real_address, test_address : test_address, data_hash : test_hash, verified_slot : current_slot };
 
     let instruction = Instruction::new_with_borsh(
         program_address,
@@ -267,10 +339,7 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
             AccountMeta::new(expected_metadata_key, false),
 
             AccountMeta::new_readonly(real_address, false),
-            AccountMeta::new_readonly(test_address, false),
-
-            AccountMeta::new_readonly(real_program_data_address, false),
-            AccountMeta::new_readonly(test_program_data_address, false)
+            AccountMeta::new_readonly(test_address, false)
         ],
     );
 
