@@ -2,6 +2,16 @@ use solana_program::{program_error::ProgramError, pubkey::Pubkey};
 use borsh::{BorshDeserialize, BorshSerialize};
 use crate::error::DaoPlaysError::InvalidInstruction;
 
+
+pub fn network_to_string(network :  Network) ->  String 
+{
+    match network {
+        Network::TestNet => "test_net".to_string(),
+        Network::DevNet => "dev_net".to_string(),
+        Network::MainNet => "main_net".to_string()
+    }
+}
+
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
 pub enum Network {
     TestNet,
@@ -30,7 +40,8 @@ pub struct VerifyProgramMeta {
     pub real_address : Pubkey,
     pub test_address : Pubkey,
     pub data_hash : [u8; 32],
-    pub verified_slot : u64
+    pub verified_slot : u64,
+    pub network : Network
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]

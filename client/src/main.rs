@@ -39,13 +39,14 @@ fn u8_to_network(index :  u8) ->  Network
     }
 }
 
-fn network_to_u8(network :  Network) ->  u8 
+pub fn network_to_string(network :  Network) ->  String 
 {
     match network {
-        Network::TestNet => 0,
-        Network::DevNet => 1,
-        Network::MainNet => 2,
-        Network::Invalid => 3
+        Network::TestNet => "test_net".to_string(),
+        Network::DevNet => "dev_net".to_string(),
+        Network::MainNet => "main_net".to_string(),
+        Network::Invalid => "invalid".to_string()
+
     }
 }
 
@@ -156,11 +157,13 @@ fn submit_program(key_file: &String) ->Result<()> {
 
 
 
+    let network_string = "dev_net".to_string();
+
     let program_address = Pubkey::from_str(PROGRAM_KEY).unwrap();
 
-    let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&real_address.to_bytes()], &program_address);
+    let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&real_address.to_bytes(), &network_string.as_bytes()], &program_address);
 
-    let (expected_userdata_key, _bump_seed) = Pubkey::find_program_address(&[&wallet.pubkey().to_bytes()], &program_address);
+    let (expected_userdata_key, _bump_seed) = Pubkey::find_program_address(&[&wallet.pubkey().to_bytes(), b"user_account"], &program_address);
 
     let meta_data =  SubmitProgramMeta{
         address: real_address, 
@@ -327,7 +330,8 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
 
     let current_slot = program_client.get_slot()?;
 
-    let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&real_address.to_bytes()], &program_address);
+    let network_string = network_to_string(network);
+    let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&real_address.to_bytes(), &network_string.as_bytes()], &program_address);
 
     let meta_data =  VerifyProgramMeta{verified_code: verified_code, real_address : real_address, test_address : test_address, data_hash : test_hash, verified_slot : current_slot };
 
@@ -373,7 +377,8 @@ fn check_metadata() ->Result<()> {
     let real_address = Pubkey::from_str("7EGMFCt38NyXZHsR7G3JeBgMkNPhGF3z8g1pVLEXPA8Y").unwrap();
     let program_address = Pubkey::from_str(PROGRAM_KEY).unwrap();
 
-    let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&real_address.to_bytes()], &program_address);
+    let network_string : String = "dev_net".to_string();
+    let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&real_address.to_bytes(), &network_string.as_bytes()], &program_address);
 
     let response = client.get_account_data(&expected_metadata_key)?;
     println!("data in account: {}", expected_metadata_key);
@@ -402,7 +407,7 @@ fn update_status(key_file : &String, user_address : &String, status_code : u8, l
     let user_pubkey = Pubkey::from_str(user_address).unwrap();
 
 
-    let (expected_userdata_key, _bump_seed) = Pubkey::find_program_address(&[&user_pubkey.to_bytes()], &program_address);
+    let (expected_userdata_key, _bump_seed) = Pubkey::find_program_address(&[&user_pubkey.to_bytes(), b"user_account"], &program_address);
 
     let meta_data =  StatusMeta{user_pubkey : user_pubkey, status_code : status_code, log_message : log_message.to_string()};
 

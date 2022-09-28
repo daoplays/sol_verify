@@ -110,6 +110,7 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("git clone https://github.com/daoplays/sol_verify.git\n")
 
     f.write("cd /sol_verify/client\n")
+    f.write("git checkout e02ae854d3920ebe474e30e0185d7b1c54edd983\n")
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : sol_verify built, airdropping funds'\n")
 
     # to avoid rate limits create a new pubkey, airdrop to there and then transfer over
@@ -165,7 +166,7 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : running verification'\n")
 
     f.write("sleep 30\n")
-    f.write("cargo run /root/.config/solana/id.json verify $ABSDIR/*-keypair.json " + program_string + "\n")
+    f.write("cargo run /root/.config/solana/id.json verify $ABSDIR/*-keypair.json " + program_string + " " + str(network_to_u8(args.network)) + "\n")
 
 
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 1 'Program " + program_string + " : verification complete'\n")
@@ -210,10 +211,10 @@ def check_address_exists(dev_client, address):
     
     return False
 
-def check_meta_data_account(dev_client, program_address):
+def check_meta_data_account(dev_client, program_address, network_string):
     config = load_config("config.json")
     
-    meta_account, _user_bump = PublicKey.find_program_address([bytes(PublicKey(program_address))], PublicKey(PROGRAM_KEY))
+    meta_account, _user_bump = PublicKey.find_program_address([bytes(PublicKey(program_address)), bytes(network_string, encoding="utf8")], PublicKey(PROGRAM_KEY))
 
     print("address ", meta_account)
 
@@ -228,7 +229,7 @@ def check_user_status_code(dev_client, user_account_key):
     config = load_config("config.json")
     wallet = load_key(config["wallet"])
     
-    user_account, _user_bump = PublicKey.find_program_address([bytes(PublicKey(user_account_key))], PublicKey(PROGRAM_KEY))
+    user_account, _user_bump = PublicKey.find_program_address([bytes(PublicKey(user_account_key)), bytes("user_account", encoding="utf8")], PublicKey(PROGRAM_KEY))
 
     log_db("Find program address for " + str(user_account_key) + " " +  str(user_account))
     
@@ -252,7 +253,7 @@ def get_update_state_idx(user_account_key, status_code, log_message):
     config = load_config("config.json")
     wallet = load_key(config["wallet"])
 
-    user_account, _user_bump = PublicKey.find_program_address([bytes(PublicKey(user_account_key))], PublicKey(PROGRAM_KEY))
+    user_account, _user_bump = PublicKey.find_program_address([bytes(PublicKey(user_account_key)), bytes("user_account", encoding="utf8")], PublicKey(PROGRAM_KEY))
 
     status_code = np.uint8(status_code)
     #status_meta = StatusMeta.build({"address" : PublicKey(user_account_key), "status_code": status_code, "log_message" : log_message})

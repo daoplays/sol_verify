@@ -1,10 +1,11 @@
 from borsh_construct import Enum, CStruct, String, U64, U8
 import base58
 
-PROGRAM_KEY = "5iYtT98ucBf5oVC2PicVTHLqFWgCw2CeBQePn9Zg9PWQ"
+PROGRAM_KEY = "49Ee36zLEqpLQeCmtE7HP5kki1ok6dRyjhvdsiYc9xrq"
 
 def print_submit_meta(meta):
     print("address: ", base58.b58encode(bytearray(meta.address)).decode("utf-8"))
+    print("network: ", meta.network)
     print("git_repo: ", meta.git_repo)
     print("git_commit: ", meta.git_commit)
     print("directory: ", meta.directory)
@@ -13,8 +14,16 @@ def print_submit_meta(meta):
     print("solana_version: ", meta.solana_version)
     print("anchor_version: ", meta.anchor_version)
 
+Verifier_Network = Enum(
+    "test_net",
+    "dev_net",
+    "main_net",
+    enum_name="VerifierNetwork", 
+)
+
 SubmitProgramMeta = CStruct(
      "address" / U8[32],
+     "network" / Verifier_Network,
      "git_repo" / String,
      "git_commit" / String,
      "directory" / String,
@@ -44,6 +53,27 @@ Verifier_Instructions = Enum(
     "UpdateStatus" / StatusMeta,
     enum_name="VerifierInstruction", 
 )
+
+def network_to_u8(network):
+    if(isinstance(network, Verifier_Network.enum.test_net)):
+        return 0
+
+    if(isinstance(network, Verifier_Network.enum.dev_net)):
+        return 1
+
+    if(isinstance(network, Verifier_Network.enum.main_net)):
+        return 2
+
+def network_to_string(network):
+    if(isinstance(network, Verifier_Network.enum.test_net)):
+        return "test_net"
+
+    if(isinstance(network, Verifier_Network.enum.dev_net)):
+        return "dev_net"
+
+    if(isinstance(network, Verifier_Network.enum.main_net)):
+        return "main_net"
+
 
 class build_environment_t():
 

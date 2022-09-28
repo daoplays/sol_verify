@@ -12,7 +12,8 @@ pub fn create_program_data_account<'a>(
     data_account: &AccountInfo<'a>,
     program_id :  &Pubkey,
     bump_seed : u8,
-    seed : &[u8],
+    seed_1 : &[u8],
+    seed_2 : &[u8],
     data_size : usize
 ) -> ProgramResult
 {
@@ -43,7 +44,7 @@ pub fn create_program_data_account<'a>(
     invoke_signed(
         &ix,
         &[funding_account.clone(), data_account.clone()],
-        &[&[seed, &[bump_seed]]]
+        &[&[seed_1, seed_2, &[bump_seed]]]
     )?;
 
     Ok(())

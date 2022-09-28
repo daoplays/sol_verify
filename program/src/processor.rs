@@ -1,4 +1,5 @@
 use std::str;
+use crate::instruction;
 use crate::state::{ProgramMetaData};
 use borsh::{BorshDeserialize, BorshSerialize};
 use crate::accounts;
@@ -60,7 +61,8 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let (expected_metadata_key, bump_seed) = Pubkey::find_program_address(&[&metadata.address.to_bytes()], &program_id);
+        let network_id : String = instruction::network_to_string(metadata.network);
+        let (expected_metadata_key, bump_seed) = Pubkey::find_program_address(&[&metadata.address.to_bytes(), &network_id.as_bytes()], &program_id);
         
         msg!("in submit, check program meta data");
         if program_metadata_account_info.key != &expected_metadata_key
@@ -69,7 +71,7 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData); 
         }
 
-        let (expected_user_metadata_key, user_bump_seed) = Pubkey::find_program_address(&[&program_owner_account_info.key.to_bytes()], &program_id);
+        let (expected_user_metadata_key, user_bump_seed) = Pubkey::find_program_address(&[&program_owner_account_info.key.to_bytes(), b"user_account"], &program_id);
 
         msg!("in submit, check user meta data");
         if user_metadata_account_info.key != &expected_user_metadata_key
@@ -92,6 +94,7 @@ impl Processor {
             program_id,
             bump_seed,
             &metadata.address.to_bytes(),
+            network_id.as_bytes(),
             state::get_metadata_size()
         )?;
 
@@ -102,6 +105,7 @@ impl Processor {
             program_id,
             user_bump_seed,
             &program_owner_account_info.key.to_bytes(),
+            b"user_account",
             state::get_userdata_size()
         )?;
 
@@ -163,7 +167,7 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let (expected_user_metadata_key, _user_bump_seed) = Pubkey::find_program_address(&[&metadata.user_pubkey.to_bytes()], &program_id);
+        let (expected_user_metadata_key, _user_bump_seed) = Pubkey::find_program_address(&[&metadata.user_pubkey.to_bytes(), b"user_account"], &program_id);
         
         if user_metadata_account_info.key != &expected_user_metadata_key
         { 
@@ -239,7 +243,9 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData); 
         }
 
-        let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&metadata.real_address.to_bytes()], &program_id);
+        let network_id : String = instruction::network_to_string(metadata.network);
+        let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&metadata.real_address.to_bytes(), &network_id.as_bytes()], &program_id);
+        
         
         if program_metadata_account_info.key != &expected_metadata_key
         { 
