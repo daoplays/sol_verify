@@ -17,8 +17,6 @@ To do:
 
 5) Add support for non git based code repositories
 
-6) Add support for non rust based programs
+6) Support main-net apps
 
-7) Support main-net apps
-
-8) Integrate into explorers
+7) Integrate into explorers
