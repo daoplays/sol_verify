@@ -20,7 +20,7 @@ use sha2::{Sha256, Digest};
 
 
 // some globals
-const PROGRAM_KEY : &str = "5iYtT98ucBf5oVC2PicVTHLqFWgCw2CeBQePn9Zg9PWQ";
+const PROGRAM_KEY : &str = "49Ee36zLEqpLQeCmtE7HP5kki1ok6dRyjhvdsiYc9xrq";
 
 const SOLANA_TEST: &str = "https://api.testnet.solana.com";
 const SOLANA_DEV: &str = "https://api.devnet.solana.com";
