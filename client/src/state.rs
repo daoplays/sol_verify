@@ -53,7 +53,8 @@ pub struct VerifyProgramMeta {
     pub real_address : Pubkey,
     pub test_address : Pubkey,
     pub data_hash : [u8; 32],
-    pub verified_slot : u64
+    pub verified_slot : u64,
+    pub network : Network
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Default)]

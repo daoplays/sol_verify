@@ -333,7 +333,7 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
     let network_string = network_to_string(network);
     let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&real_address.to_bytes(), &network_string.as_bytes()], &program_address);
 
-    let meta_data =  VerifyProgramMeta{verified_code: verified_code, real_address : real_address, test_address : test_address, data_hash : test_hash, verified_slot : current_slot };
+    let meta_data =  VerifyProgramMeta{verified_code: verified_code, real_address : real_address, test_address : test_address, data_hash : test_hash, verified_slot : current_slot, network : network };
 
     let instruction = Instruction::new_with_borsh(
         program_address,
