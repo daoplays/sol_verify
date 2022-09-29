@@ -13,10 +13,6 @@ To do:
 
 3) Store meta data for the program on chain in the programs's meta data account : code location, hash of the code etc
 
-4) Make it easier for a user to just check the current verification status of a program and any meta data that exists.
+4) Add support for non git based code repositories
 
-5) Add support for non git based code repositories
-
-6) Support main-net apps
-
-7) Integrate into explorers
+5) Integrate into explorers
