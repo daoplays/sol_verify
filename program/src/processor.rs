@@ -212,7 +212,7 @@ impl Processor {
         program_id: &Pubkey,
         metadata : VerifyProgramMeta
     ) ->ProgramResult {
-
+        
         let account_info_iter = &mut accounts.iter();
 
         // This function expects to be passed three accounts, get them all first and then check their value is as expected
