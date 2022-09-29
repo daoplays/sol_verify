@@ -110,7 +110,7 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("git clone https://github.com/daoplays/sol_verify.git\n")
 
     f.write("cd /sol_verify/client\n")
-    f.write("git checkout e02ae854d3920ebe474e30e0185d7b1c54edd983\n")
+    f.write("git checkout 291e3c653a9b022f3be763df25a51802cd7b3d5f\n")
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : sol_verify built, airdropping funds'\n")
 
     # to avoid rate limits create a new pubkey, airdrop to there and then transfer over

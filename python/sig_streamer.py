@@ -75,7 +75,7 @@ while(True):
 
                     update_idx = get_update_state_idx(user_pubkey, 0, "Program " + program_string + " : clone and build sol_verify repo")
                     send_transaction(dev_client, [update_idx])
-                    exit()
+
                     time.sleep(5)
                     subprocess.run(["../docker/run.sh " + str(docker_count)], shell=True)
                     docker_count += 1
