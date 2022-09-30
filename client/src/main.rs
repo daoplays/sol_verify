@@ -21,7 +21,7 @@ use solana_security_txt::security_txt;
 
 
 // some globals
-const PROGRAM_KEY : &str = "bt4Ztakc3puCMxHq8ot23YtSPRBCVD1n2eK78Dsv2W6";
+const PROGRAM_KEY : &str = "3MjokPePgjwAtXSdvgvLbdx5J5FUXkG4rDBuBgqHVNmc";
 
 const SOLANA_TEST: &str = "https://api.testnet.solana.com";
 const SOLANA_DEV: &str = "https://api.devnet.solana.com";
@@ -136,6 +136,7 @@ fn get_sha256_hashed_data(real_data : &[u8], test_data: &[u8]) -> (bool, [u8; 32
 
     let test_result = test_hasher.finalize();
 
+    println!("real: {:?}", real_result);
     println!("test: {:?}", test_result);
 
     let mut hashed_array : [u8; 32] = [0; 32];
@@ -144,7 +145,6 @@ fn get_sha256_hashed_data(real_data : &[u8], test_data: &[u8]) -> (bool, [u8; 32
         hashed_array[i] = u8::from_le_bytes(hash_slice.try_into().expect("slice with incorrect length"));
     }
 
-    println!("test: {:?}", hashed_array);
     
     return (real_result == test_result, hashed_array);
     
