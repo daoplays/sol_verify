@@ -15,6 +15,7 @@ use solana_program::{
 };
 
 use crate::{instruction::{VerifyInstruction, SubmitProgramMeta, VerifyProgramMeta, StatusMeta}};
+use state::{GIT_REPO_BEGIN, GIT_REPO_END, GIT_COMMIT_BEGIN, GIT_COMMIT_END, GIT_DIR_BEGIN, GIT_DIR_END};
 
 pub struct Processor;
 impl Processor {
@@ -261,6 +262,24 @@ impl Processor {
         current_state.last_verified_slot = metadata.verified_slot;
         current_state.data_hash = metadata.data_hash;
 
+        // serialise the code meta data
+        let mut code_string : String = metadata.git_repo.to_owned();
+
+        code_string += GIT_COMMIT_BEGIN;
+        code_string += &metadata.git_commit;
+
+        code_string += GIT_DIR_BEGIN;
+        code_string += &metadata.directory;
+        code_string += GIT_DIR_END;
+
+        let mut code_meta : [u8; 512] = [0 ; 512];
+
+        let code_string_bytes = code_string.as_bytes();
+        for i in 0..code_string_bytes.len() {
+            code_meta[i] = code_string_bytes[i];
+        }
+
+        current_state.code_meta = code_meta;
         msg!("current_state {:?}", current_state);
         
         current_state.serialize(&mut &mut program_metadata_account_info.data.borrow_mut()[..])?;

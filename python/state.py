@@ -1,7 +1,8 @@
 from borsh_construct import Enum, CStruct, String, U64, U8
 import base58
+from solana import message
 
-PROGRAM_KEY = "49Ee36zLEqpLQeCmtE7HP5kki1ok6dRyjhvdsiYc9xrq"
+PROGRAM_KEY = "bt4Ztakc3puCMxHq8ot23YtSPRBCVD1n2eK78Dsv2W6"
 
 def print_submit_meta(meta):
     print("address: ", base58.b58encode(bytearray(meta.address)).decode("utf-8"))
@@ -34,11 +35,11 @@ SubmitProgramMeta = CStruct(
 )
 
 VerifyProgramMeta = CStruct(
-    "verified" / U8,
-    "real_address" / U8[32],
     "test_address" / U8[32],
+    "last_verified_slot" / U64,
+    "verified" / U8,
     "data_hash" / U8[32],
-    "verified_slot" / U64
+    "code_meta" / U8[512]
 )
 
 StatusMeta = CStruct(
@@ -108,3 +109,20 @@ class build_environment_t():
 # define a map of build environments for the prebuild dockers
 BUILD_ENVIRONMENT_MAP = {}
 BUILD_ENVIRONMENT_MAP["solana_v1.10.39"] = build_environment_t("1.63", "1.10.39", "0.25.0")
+
+def check_security(dev_client, address):
+    program_account = dev_client.get_account_info(address)["result"]["value"]
+
+    if program_account["owner"] != 'BPFLoaderUpgradeab1e11111111111111111111111':
+        return None
+
+    program_account_data = program_account["data"]
+    print(message.Message.deserialize(program_account_data))
+    #let real_program: UpgradeableLoaderState = bincode::deserialize_from(&real_program_account.data[..]).unwrap();
+
+    return program_account_data
+
+#if !bpf_loader_upgradeable::check_id(&real_program_account.owner) {
+ #   println!("Only accounts owned by the bpf_loader_upgradeable program are supported at the moment");
+  #  return Ok(());
+   # }

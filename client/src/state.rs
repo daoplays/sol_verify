@@ -54,15 +54,19 @@ pub struct VerifyProgramMeta {
     pub test_address : Pubkey,
     pub data_hash : [u8; 32],
     pub verified_slot : u64,
-    pub network : Network
+    pub network : Network,
+    pub git_repo : String,
+    pub git_commit : String,
+    pub directory : String
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq, Default)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
 pub struct ProgramMetaData {
     pub test_address : Pubkey,
     pub last_verified_slot : u64,
     pub verified_code : u8,
-    pub data_hash : [u8 ; 32]
+    pub data_hash : [u8 ; 32],
+    pub code_meta : [u8 ; 512]
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]

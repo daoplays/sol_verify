@@ -110,7 +110,7 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("git clone https://github.com/daoplays/sol_verify.git\n")
 
     f.write("cd /sol_verify/client\n")
-    f.write("git checkout 291e3c653a9b022f3be763df25a51802cd7b3d5f\n")
+    f.write("git checkout 13d78118bf3deff4d1b2fec0c0eadbc0b37296a7\n")
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : sol_verify built, airdropping funds'\n")
 
     # to avoid rate limits create a new pubkey, airdrop to there and then transfer over
@@ -166,7 +166,7 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : running verification'\n")
 
     f.write("sleep 30\n")
-    f.write("cargo run /root/.config/solana/id.json verify $ABSDIR/*-keypair.json " + program_string + " " + str(network_to_u8(args.network)) + "\n")
+    f.write("cargo run /root/.config/solana/id.json verify $ABSDIR/*-keypair.json " + program_string + " " + str(network_to_u8(args.network)) + " " + user_pubkey + " " + args.git_repo + " " + args.git_commit + " " + args.directory + "\n")
 
 
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 1 'Program " + program_string + " : verification complete'\n")
@@ -212,7 +212,6 @@ def check_address_exists(dev_client, address):
     return False
 
 def check_meta_data_account(dev_client, program_address, network_string):
-    config = load_config("config.json")
     
     meta_account, _user_bump = PublicKey.find_program_address([bytes(PublicKey(program_address)), bytes(network_string, encoding="utf8")], PublicKey(PROGRAM_KEY))
 
@@ -221,9 +220,19 @@ def check_meta_data_account(dev_client, program_address, network_string):
     response = dev_client.get_account_info(meta_account)
 
     data = response["result"]["value"]["data"][0]
-    decoded_data = base64.b64decode(data)
 
-    return decoded_data
+    decoded =  base64.b64decode(data)
+    code_meta_start = 73
+    code_meta = decoded[code_meta_start:].decode("utf8")
+
+    repo_end = code_meta.find("=======BEGIN GIT COMMIT=======")
+    commit_end = code_meta.find("=======BEGIN GIT DIR=======")
+    dir_end = code_meta.find("=======END GIT DIR=======")
+
+    git = code_meta[:repo_end]
+    commit = code_meta[repo_end+len("=======BEGIN GIT COMMIT=======")+1:commit_end]
+    dir = code_meta[commit_end+len("=======BEGIN GIT DIR=======")+1:dir_end]
+    return git, commit, dir
 
 def check_user_status_code(dev_client, user_account_key):
     config = load_config("config.json")

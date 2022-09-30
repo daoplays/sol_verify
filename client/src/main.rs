@@ -17,10 +17,11 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_transaction_status::UiTransactionEncoding;
 use twoway::find_bytes;
 use sha2::{Sha256, Digest};
+use solana_security_txt::security_txt;
 
 
 // some globals
-const PROGRAM_KEY : &str = "49Ee36zLEqpLQeCmtE7HP5kki1ok6dRyjhvdsiYc9xrq";
+const PROGRAM_KEY : &str = "bt4Ztakc3puCMxHq8ot23YtSPRBCVD1n2eK78Dsv2W6";
 
 const SOLANA_TEST: &str = "https://api.testnet.solana.com";
 const SOLANA_DEV: &str = "https://api.devnet.solana.com";
@@ -70,13 +71,17 @@ fn main() {
         let network_arg = &args[5];
         let network_u8: u8 = network_arg.parse().unwrap();
         let network = u8_to_network(network_u8);
+        let user_address = &args[6];
+        let git_repo = &args[7];
+        let git_commit = &args[8];
+        let directory = &args[9];
 
         if network == Network::Invalid {
             println!("invalid network");
             std::process::exit(1);
         }
 
-        if let Err(err) = verify_program(key_file, test_key_file, real_address, network) {
+        if let Err(err) = verify_program(key_file, test_key_file, real_address, network, user_address, git_repo, git_commit, directory) {
             eprintln!("{:?}", err);
             std::process::exit(1);
         }
@@ -103,6 +108,15 @@ fn main() {
             eprintln!("{:?}", err);
             std::process::exit(1);
         }
+    }
+
+    if function == "write_security" {
+
+        if let Err(err) = get_security() {
+            eprintln!("{:?}", err);
+            std::process::exit(1);
+        }
+
     }
 
 
@@ -218,7 +232,12 @@ fn get_program_client(network : Network) -> RpcClient {
     }
 }
 
-fn verify_program(key_file: &String, test_key_file: &String, real_address_string: &String, network : Network) ->Result<()> {
+struct upgrade_info {
+    slot : u64,
+    upgrade_authority : Option<Pubkey>
+}
+
+fn verify_program(key_file: &String, test_key_file: &String, real_address_string: &String, network : Network, user_address : &String, git_repo: &String, git_commit: &String, directory: &String) ->Result<()> {
 
     // (2) Create a new Keypair for the new account
     let wallet = read_keypair_file(key_file).unwrap();
@@ -302,16 +321,19 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
 
     let real_meta : UpgradeableLoaderState = bincode::deserialize_from(&real_program_data_account.data[..data_offset]).unwrap();
 
+    let mut upgrade_info = upgrade_info {slot : 0, upgrade_authority : Some(system_program::ID)};
+
     println!("data_buffer {:?}", real_meta);
 
-    let mut upgrade_authority = None;
     let mut upgradeable : bool = false;
     match real_meta {
-        UpgradeableLoaderState::ProgramData{slot, upgrade_authority_address} => upgrade_authority = upgrade_authority_address,
+        UpgradeableLoaderState::ProgramData{slot, upgrade_authority_address} => 
+        upgrade_info = upgrade_info {slot : slot, upgrade_authority  : upgrade_authority_address},
         _ => println!("Account not upgradeable"),
     }
 
-    if upgrade_authority.is_some() {
+
+    if upgrade_info.upgrade_authority.is_some() {
         upgradeable = true;
     }
 
@@ -333,7 +355,32 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
     let network_string = network_to_string(network);
     let (expected_metadata_key, _bump_seed) = Pubkey::find_program_address(&[&real_address.to_bytes(), &network_string.as_bytes()], &program_address);
 
-    let meta_data =  VerifyProgramMeta{verified_code: verified_code, real_address : real_address, test_address : test_address, data_hash : test_hash, verified_slot : current_slot, network : network };
+    // check the current meta data
+    let response = client.get_account_data(&expected_metadata_key)?;
+    let current_state = ProgramMetaData::try_from_slice(&response[..]).unwrap();
+
+
+    // if the program has already had a verification run, and it has code = 3 (passed, immutable) then we only want to update
+    // the state if it still passes
+
+    if current_state.verified_code == 3 && !verified {
+        let message : String = "program already verified and immutable but new verification fails.  Not updating state.".to_string();
+        update_status(key_file, user_address, 109  as u8, &message)?;
+        return Ok(println!("{}", message))
+    }
+
+    // if a previous verification was code = 2 (passed, mutable), then we need to check if the last update time was after the last verification time.  If it wasn't then we only update if the verification still passes.
+
+    if current_state.verified_code == 2 && upgrade_info.slot < current_state.last_verified_slot && !verified {
+        let message : String = "program already verified and not updated since last verification but new verification fails.  Not updating state.".to_string();
+        update_status(key_file, user_address, 110  as u8, &message)?;
+        return Ok(println!("{}", message))
+    }
+
+    // if the update time is after the last verification time then we will always perform the verification again.
+    // Similarly if code == 1 or 0 (failed, or this is the first time) then we will always perform it again.
+
+    let meta_data =  VerifyProgramMeta{verified_code: verified_code, real_address : real_address, test_address : test_address, data_hash : test_hash, verified_slot : current_slot, network : network, git_repo : git_repo.to_string(), git_commit: git_commit.to_string(), directory : directory.to_string() };
 
     let instruction = Instruction::new_with_borsh(
         program_address,
@@ -438,4 +485,50 @@ fn update_status(key_file : &String, user_address : &String, status_code : u8, l
     
 
     Ok(println!("Success!"))
+}
+
+
+fn get_security() ->Result<()> {
+
+    let client = RpcClient::new(URL);
+
+    let program_address = Pubkey::from_str(PROGRAM_KEY).unwrap();
+
+    let program_account = client.get_account(&program_address)?;
+
+    if !bpf_loader_upgradeable::check_id(&program_account.owner) {
+        println!("wrong owner");
+        return Ok(());
+    }
+
+    let program: UpgradeableLoaderState = bincode::deserialize_from(&program_account.data[..]).unwrap();
+
+    let program_data_address = if let UpgradeableLoaderState::Program {
+        programdata_address,
+    } = program
+    {
+        programdata_address
+    } else {
+        return Ok(());
+    };
+
+    let program_data_account = client.get_account(&program_data_address)?;
+
+    let offset = UpgradeableLoaderState::programdata_data_offset().unwrap();
+    if program_data_account.data.len() < offset {
+        return Ok(());
+    }
+
+    let program_data = &program_data_account.data[offset..];
+
+    let security_txt = solana_security_txt::find_and_parse(program_data).unwrap();
+    println!("{}", security_txt);
+
+    
+    if security_txt.source_code.is_some() {
+        println!("Source code: {:?}", security_txt.source_code.unwrap());
+    }
+
+    Ok(())
+
 }
