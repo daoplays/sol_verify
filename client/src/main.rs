@@ -18,10 +18,11 @@ use solana_transaction_status::UiTransactionEncoding;
 use twoway::find_bytes;
 use sha2::{Sha256, Digest};
 use solana_security_txt::security_txt;
-
+use std::fs::File;
+use std::io::prelude::*;
 
 // some globals
-const PROGRAM_KEY : &str = "3MjokPePgjwAtXSdvgvLbdx5J5FUXkG4rDBuBgqHVNmc";
+const PROGRAM_KEY : &str = "6Eur9ULgxmgcK2Lk8vdCyasBLmU5HzYgmCxsYunr7U52";
 
 const SOLANA_TEST: &str = "https://api.testnet.solana.com";
 const SOLANA_DEV: &str = "https://api.devnet.solana.com";
@@ -112,7 +113,8 @@ fn main() {
 
     if function == "write_security" {
 
-        if let Err(err) = get_security() {
+        let program_address = &args[3];
+        if let Err(err) = get_security(program_address) {
             eprintln!("{:?}", err);
             std::process::exit(1);
         }
@@ -159,11 +161,11 @@ fn submit_program(key_file: &String) ->Result<()> {
     // (3) Create RPC client to be used to talk to Solana cluster
     let client = RpcClient::new(URL);
 
-    let real_address = Pubkey::from_str("5iYtT98ucBf5oVC2PicVTHLqFWgCw2CeBQePn9Zg9PWQ").unwrap();
+    let real_address = Pubkey::from_str("6Eur9ULgxmgcK2Lk8vdCyasBLmU5HzYgmCxsYunr7U52").unwrap();
     let network = Network::DevNet;
-    let git_repo = "https://github.com/daoplays/sol_verify".to_string();
-    let git_commit = "2ffa01a8b35332690c931372e9d559bfd53375fc".to_string();
-    let directory = "program".to_string();
+    let git_repo = "https://github.com/daoplays/sol_verify/archive/refs/heads/main.zip".to_string();
+    let git_commit = "".to_string();
+    let directory = "sol_verify-main/program".to_string();
     let docker_version = "".to_string();
     let rust_version = "1.62".to_string();
     let solana_version = "1.10.39".to_string();
@@ -488,11 +490,11 @@ fn update_status(key_file : &String, user_address : &String, status_code : u8, l
 }
 
 
-fn get_security() ->Result<()> {
+fn get_security(program_address_string : &String) ->Result<()> {
 
     let client = RpcClient::new(URL);
 
-    let program_address = Pubkey::from_str(PROGRAM_KEY).unwrap();
+    let program_address = Pubkey::from_str(program_address_string).unwrap();
 
     let program_account = client.get_account(&program_address)?;
 
@@ -524,10 +526,17 @@ fn get_security() ->Result<()> {
     let security_txt = solana_security_txt::find_and_parse(program_data).unwrap();
     println!("{}", security_txt);
 
-    
-    if security_txt.source_code.is_some() {
-        println!("Source code: {:?}", security_txt.source_code.unwrap());
+    if security_txt.source_code.is_none() {
+        return Ok(());
     }
+
+    let source_code = &security_txt.source_code.unwrap();
+
+    
+    println!("Source code: {:?}", source_code);
+    let mut file = File::create("security_txt_output").unwrap();
+    file.write_all(source_code.as_bytes()).unwrap();
+    
 
     Ok(())
 

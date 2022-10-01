@@ -2,7 +2,7 @@ from borsh_construct import Enum, CStruct, String, U64, U8
 import base58
 from solana import message
 
-PROGRAM_KEY = "3MjokPePgjwAtXSdvgvLbdx5J5FUXkG4rDBuBgqHVNmc"
+PROGRAM_KEY = "6Eur9ULgxmgcK2Lk8vdCyasBLmU5HzYgmCxsYunr7U52"
 
 def print_submit_meta(meta):
     print("address: ", base58.b58encode(bytearray(meta.address)).decode("utf-8"))
@@ -109,20 +109,3 @@ class build_environment_t():
 # define a map of build environments for the prebuild dockers
 BUILD_ENVIRONMENT_MAP = {}
 BUILD_ENVIRONMENT_MAP["solana_v1.10.39"] = build_environment_t("1.63", "1.10.39", "0.25.0")
-
-def check_security(dev_client, address):
-    program_account = dev_client.get_account_info(address)["result"]["value"]
-
-    if program_account["owner"] != 'BPFLoaderUpgradeab1e11111111111111111111111':
-        return None
-
-    program_account_data = program_account["data"]
-    print(message.Message.deserialize(program_account_data))
-    #let real_program: UpgradeableLoaderState = bincode::deserialize_from(&real_program_account.data[..]).unwrap();
-
-    return program_account_data
-
-#if !bpf_loader_upgradeable::check_id(&real_program_account.owner) {
- #   println!("Only accounts owned by the bpf_loader_upgradeable program are supported at the moment");
-  #  return Ok(());
-   # }

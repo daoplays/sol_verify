@@ -31,6 +31,19 @@ def load_config(filename):
     
     return json.load(open(filename))["config"]
 
+def check_wget(filename):
+
+    command = "wget --spider --timeout=10 -t 1 " + filename
+    try:
+        subprocess.run(command, shell=True, check=True)
+    except:
+        log_error("wget failed!")
+        return False
+
+    return True
+        
+  
+
 def lsremote(url):
 
     remote_refs = {}
@@ -52,14 +65,51 @@ def check_args(dev_client, user_pubkey, args):
         send_transaction(dev_client, [update_idx])
         return False
 
-    try:
-        remote = lsremote(args.git_repo)
-    except:
-        update_idx = get_update_state_idx(user_pubkey, GIT_REPO_DOESNT_EXIST, "Program " + program_string + " : git repo '" + args.git_repo + "' does not exist or inaccessible")
+    # check if the program is using security.txt
+    source_code = check_security(args.address)
+
+    if source_code != None and source_code not in args.git_repo:
+        update_idx = get_update_state_idx(user_pubkey, SECURITY_TXT_MISMATCH, "Program " + program_string + " : source code  '" + source_code + "' in security.txt differs from " + args.git_repo)
         send_transaction(dev_client, [update_idx])
         return False
+        
 
-    return remote
+    # if we have a git commit check the git address is valid
+    if args.git_commit != "" :
+        try:
+            remote = lsremote(args.git_repo)
+        except:
+            update_idx = get_update_state_idx(user_pubkey, GIT_REPO_DOESNT_EXIST, "Program " + program_string + " : git repo '" + args.git_repo + "' does not exist or inaccessible")
+            send_transaction(dev_client, [update_idx])
+            return False
+    
+
+        return remote
+
+    # otherwise we assume we are using wget to retrieve an archive
+    if check_wget(args.git_repo):
+        return True
+
+    update_idx = get_update_state_idx(user_pubkey, GIT_REPO_DOESNT_EXIST, "Program " + program_string + " : archive '" + args.git_repo + "' does not exist or inaccessible using wget")
+    send_transaction(dev_client, [update_idx])
+    return False
+
+def check_security(program_address):
+    cwd = os.getcwd()
+    os.chdir('../client')
+
+    result = None
+    subprocess.run(["cargo run dummy write_security " + program_address], shell=True)
+    if os.path.exists("security_txt_output"):
+        f = open("security_txt_output").readlines()
+        print(f)
+        subprocess.run(["rm security_txt_output"], shell=True)
+        result = f[0]
+
+    os.chdir(cwd)
+    return result
+
+
 
 def write_docker_file(dev_client, user_pubkey, args, docker_count):
 
@@ -92,6 +142,8 @@ def write_docker_file(dev_client, user_pubkey, args, docker_count):
     f.write("RUN sh -c \"$(curl -sSL https://release.solana.com/v" + build_environ.solana_version + "/install)\"\n")
     f.write("ENV PATH=\"${PATH}:/root/.local/share/solana/install/active_release/bin\"\n")
 
+    
+
     if (build_environ.anchor_version != None):
         f.write("RUN cargo install --git https://github.com/project-serum/anchor --tag v" + build_environ.anchor_version + " anchor-cli --locked\n")
 
@@ -106,11 +158,22 @@ def write_config_file(args, user_pubkey, docker_count):
 
     f = open(config_name, "w")
 
-    f.write("git clone " + args.git_repo + " test_repo\n")
-    #f.write("git clone https://github.com/daoplays/sol_verify.git\n")
+
+    if args.git_commit != "":
+        f.write("git clone " + args.git_repo + " test_repo\n")
+    else:
+        fname = args.git_repo.split("/")[-1]
+        f.write("curl -L https://cpanmin.us | perl - App::cpanminus\n") 
+        f.write("cpanm Archive::Extract\n")
+        f.write("cpanm Archive::Zip\n")
+        f.write("wget " + args.git_repo + "\n")
+        f.write("if [ ! $(perl extract.perl " + fname + ") ]; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 111 \"Program " + program_string + " : archive " + fname + " failed to extract\"; exit 1; fi\n")
+
+
+    f.write("git clone https://github.com/daoplays/sol_verify.git\n")
 
     f.write("cd /sol_verify/client\n")
-    #f.write("git checkout f75c5c381979b0e61b82b386b3f2bdc9fbd35327\n")
+    f.write("git checkout f75c5c381979b0e61b82b386b3f2bdc9fbd35327\n")
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : sol_verify built, airdropping funds'\n")
 
     # to avoid rate limits create a new pubkey, airdrop to there and then transfer over
@@ -128,10 +191,11 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("cd /test_repo\n")
 
     #check the commit given is valid
-    f.write("if ! git cat-file -e " + args.git_commit + "^{commit}; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 103 \"Program " + program_string + " : commit " + args.git_commit + " doesn't exist in repo\"; exit 1; fi\n")
+    if args.git_commit != "":
+        f.write("if ! git cat-file -e " + args.git_commit + "^{commit}; then cd /sol_verify/client; cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 103 \"Program " + program_string + " : commit " + args.git_commit + " doesn't exist in repo\"; exit 1; fi\n")
 
+        f.write("git checkout " + args.git_commit + "\n")
 
-    f.write("git checkout " + args.git_commit + "\n")
     f.write("cd /test_repo/" + args.directory + "\n")
 
     # if neither Cargo.toml or makefile exist in the current directory we can't do anything
@@ -166,7 +230,11 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : running verification'\n")
 
     f.write("sleep 30\n")
-    f.write("cargo run /root/.config/solana/id.json verify $ABSDIR/*-keypair.json " + program_string + " " + str(network_to_u8(args.network)) + " " + user_pubkey + " " + args.git_repo + " " + args.git_commit + " " + args.directory + "\n")
+    commit = args.git_commit
+    if commit == "":
+        commit = "NO_COMMIT"
+
+    f.write("cargo run /root/.config/solana/id.json verify $ABSDIR/*-keypair.json " + program_string + " " + str(network_to_u8(args.network)) + " " + user_pubkey + " " + args.git_repo + " " + commit + " " + args.directory + "\n")
 
 
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 1 'Program " + program_string + " : verification complete'\n")
