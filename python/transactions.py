@@ -66,7 +66,7 @@ def check_args(dev_client, user_pubkey, args):
         return False
 
     # check if the program is using security.txt
-    source_code = check_security(args.address)
+    source_code = check_security(program_string)
 
     if source_code != None and source_code not in args.git_repo:
         update_idx = get_update_state_idx(user_pubkey, SECURITY_TXT_MISMATCH, "Program " + program_string + " : source code  '" + source_code + "' in security.txt differs from " + args.git_repo)
@@ -173,7 +173,7 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("git clone https://github.com/daoplays/sol_verify.git\n")
 
     f.write("cd /sol_verify/client\n")
-    f.write("git checkout f75c5c381979b0e61b82b386b3f2bdc9fbd35327\n")
+    f.write("git checkout 0d4ffcaa1784d0dfdd85348c5cca53685e339d2b\n")
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : sol_verify built, airdropping funds'\n")
 
     # to avoid rate limits create a new pubkey, airdrop to there and then transfer over
@@ -230,14 +230,15 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : running verification'\n")
 
     f.write("sleep 30\n")
-    commit = args.git_commit
-    if commit == "":
-        commit = "NO_COMMIT"
+    
+    if args.git_commit == "":
+        f.write("sha_string=($(sha256sum /" + fname + "))\n")
+        f.write("COMMIT=${sha_string[0]}\n")
+    else:
+        f.write("COMMIT=" + args.git_commit + "\n")
 
-    f.write("cargo run /root/.config/solana/id.json verify $ABSDIR/*-keypair.json " + program_string + " " + str(network_to_u8(args.network)) + " " + user_pubkey + " " + args.git_repo + " " + commit + " " + args.directory + "\n")
 
-
-    f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 1 'Program " + program_string + " : verification complete'\n")
+    f.write("cargo run /root/.config/solana/id.json verify $ABSDIR/*-keypair.json " + program_string + " " + str(network_to_u8(args.network)) + " " + user_pubkey + " " + args.git_repo + " $COMMIT " + args.directory + "\n")
 
     f.close()
     

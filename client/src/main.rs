@@ -3,6 +3,7 @@ pub mod state;
 
 use crate::state::{Result, SubmitProgramMeta, VerifyInstruction, VerifyProgramMeta, ProgramMetaData, StatusMeta, Network};
 
+use std::borrow::Borrow;
 use std::{env, io::BufRead};
 use std::str::FromStr;
 use solana_client::rpc_client::RpcClient;
@@ -334,7 +335,7 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
         _ => println!("Account not upgradeable"),
     }
 
-
+    
     if upgrade_info.upgrade_authority.is_some() {
         upgradeable = true;
     }
@@ -361,12 +362,15 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
     let response = client.get_account_data(&expected_metadata_key)?;
     let current_state = ProgramMetaData::try_from_slice(&response[..]).unwrap();
 
+    let mut message = "Program ".to_owned();
+    message += real_address_string;
+    message += " : ";
 
     // if the program has already had a verification run, and it has code = 3 (passed, immutable) then we only want to update
     // the state if it still passes
 
     if current_state.verified_code == 3 && !verified {
-        let message : String = "program already verified and immutable but new verification fails.  Not updating state.".to_string();
+        message += "program already verified and immutable but new verification fails.  Not updating state.";
         update_status(key_file, user_address, 109  as u8, &message)?;
         return Ok(println!("{}", message))
     }
@@ -374,7 +378,7 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
     // if a previous verification was code = 2 (passed, mutable), then we need to check if the last update time was after the last verification time.  If it wasn't then we only update if the verification still passes.
 
     if current_state.verified_code == 2 && upgrade_info.slot < current_state.last_verified_slot && !verified {
-        let message : String = "program already verified and not updated since last verification but new verification fails.  Not updating state.".to_string();
+        message +=  "program already verified and not updated since last verification but new verification fails.  Not updating state.";
         update_status(key_file, user_address, 110  as u8, &message)?;
         return Ok(println!("{}", message))
     }
@@ -411,6 +415,27 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
     println!("signature: {}", signature);
     let response = client.get_transaction(&signature, UiTransactionEncoding::Json)?;
     println!("result: {:#?}", response); 
+
+ 
+
+    // finally update the user with the result
+    if current_state.verified_code == 1 {
+        message += "Verification process has not produced a match";
+        update_status(key_file, user_address, 1  as u8, &message)?;
+        return Ok(println!("{}", message))
+    }
+
+    if current_state.verified_code == 2 {
+        message +=  "Verification was successful, however the program is upgradable";
+        update_status(key_file, user_address, 1  as u8, &message)?;
+        return Ok(println!("{}", message))
+    }
+
+    if current_state.verified_code == 3 {
+        message +=  "Verification was successful, and program is immutable";
+        update_status(key_file, user_address, 1  as u8, &message)?;
+        return Ok(println!("{}", message))
+    }
 
     Ok(println!("Success!"))
 }
