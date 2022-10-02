@@ -110,6 +110,10 @@ impl Processor {
             state::get_userdata_size()
         )?;
 
+        // reset the users state
+        0u8.serialize(&mut &mut user_metadata_account_info.data.borrow_mut()[..1])?;
+
+
         let log_array = ["Program", &metadata.address.to_string(), ": accounts created"];
         let log_message = (log_array.join(" ")).to_string();
         let log_message_bytes = log_message.as_bytes();
