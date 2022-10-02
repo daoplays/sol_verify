@@ -2,7 +2,7 @@ from borsh_construct import Enum, CStruct, String, U64, U8
 import base58
 from solana import message
 
-PROGRAM_KEY = "6Eur9ULgxmgcK2Lk8vdCyasBLmU5HzYgmCxsYunr7U52"
+PROGRAM_KEY = "CNd6wN4en9Xvbf2e1ubb2YyCkC7J1BbbuhAGhqcdHFbi"
 
 def print_submit_meta(meta):
     print("address: ", base58.b58encode(bytearray(meta.address)).decode("utf-8"))

@@ -23,7 +23,7 @@ use std::fs::File;
 use std::io::prelude::*;
 
 // some globals
-const PROGRAM_KEY : &str = "6Eur9ULgxmgcK2Lk8vdCyasBLmU5HzYgmCxsYunr7U52";
+const PROGRAM_KEY : &str = "CNd6wN4en9Xvbf2e1ubb2YyCkC7J1BbbuhAGhqcdHFbi";
 
 const SOLANA_TEST: &str = "https://api.testnet.solana.com";
 const SOLANA_DEV: &str = "https://api.devnet.solana.com";
