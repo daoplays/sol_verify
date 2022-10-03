@@ -47,8 +47,9 @@ while(True):
                         log_error("already running docker for user " + str(user_pubkey))
                         continue
 
+                    valid_args, source_code, upgradeable = check_args(dev_client, user_pubkey, args)
                     # check that the args are valid
-                    if (not check_args(dev_client, user_pubkey, args)):
+                    if (not valid_args):
                         log_error("invalid arguments:")
                         print_submit_meta(args)
                         continue
@@ -58,7 +59,7 @@ while(True):
                     print("have Submit:")
                     print_submit_meta(args)
                    
-                    write_config_file(args, user_pubkey, docker_count)
+                    write_config_file(args, user_pubkey, docker_count, upgradeable)
                     if (not write_docker_file(dev_client, user_pubkey, args, docker_count)):
                         continue
 
@@ -76,7 +77,7 @@ while(True):
                     update_idx = get_update_state_idx(user_pubkey, 0, "Program " + program_string + " : clone and build sol_verify repo")
                     send_transaction(dev_client, [update_idx])
                     time.sleep(5)
-
+                    exit()
                     subprocess.run(["../docker/run.sh " + str(docker_count)], shell=True)
                     docker_count += 1
                    

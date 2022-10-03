@@ -63,15 +63,15 @@ def check_args(dev_client, user_pubkey, args):
     if (not check_address_exists(dev_client, args.address)):
         update_idx = get_update_state_idx(user_pubkey, PROGRAM_DOESNT_EXIST, "Program " + program_string + " : address '" + program_string + "' does not exist or has no lamports")
         send_transaction(dev_client, [update_idx])
-        return False
+        return False, None, None
 
     # check if the program is using security.txt
-    source_code = check_security(program_string)
+    source_code, upgradeable = check_security(program_string)
 
     if source_code != None and source_code not in args.git_repo:
         update_idx = get_update_state_idx(user_pubkey, SECURITY_TXT_MISMATCH, "Program " + program_string + " : source code  '" + source_code + "' in security.txt differs from " + args.git_repo)
         send_transaction(dev_client, [update_idx])
-        return False
+        return False, source_code, upgradeable
         
 
     # if we have a git commit check the git address is valid
@@ -81,33 +81,36 @@ def check_args(dev_client, user_pubkey, args):
         except:
             update_idx = get_update_state_idx(user_pubkey, GIT_REPO_DOESNT_EXIST, "Program " + program_string + " : git repo '" + args.git_repo + "' does not exist or inaccessible")
             send_transaction(dev_client, [update_idx])
-            return False
+            return False, source_code, upgradeable
     
 
-        return remote
+        return True, source_code, upgradeable
 
     # otherwise we assume we are using wget to retrieve an archive
     if check_wget(args.git_repo):
-        return True
+        return True, source_code, upgradeable
 
     update_idx = get_update_state_idx(user_pubkey, GIT_REPO_DOESNT_EXIST, "Program " + program_string + " : archive '" + args.git_repo + "' does not exist or inaccessible using wget")
     send_transaction(dev_client, [update_idx])
-    return False
+    return False, source_code, upgradeable
 
 def check_security(program_address):
     cwd = os.getcwd()
     os.chdir('../client')
 
-    result = None
+    source_code = None
     subprocess.run(["cargo run dummy write_security " + program_address], shell=True)
-    if os.path.exists("security_txt_output"):
-        f = open("security_txt_output").readlines()
-        print(f)
-        subprocess.run(["rm security_txt_output"], shell=True)
-        result = f[0]
+    meta_json = json.load(open("program_meta_data.json"))
+    print(meta_json)
+    subprocess.run(["rm program_meta_data.json"], shell=True)
+
+    upgradeable =  meta_json["upgradeable"]
+    if (meta_json["source_code"] != "none"):
+        source_code = meta_json["source_code"]
 
     os.chdir(cwd)
-    return result
+
+    return source_code, upgradeable
 
 
 
@@ -151,7 +154,7 @@ def write_docker_file(dev_client, user_pubkey, args, docker_count):
 
     return True
 
-def write_config_file(args, user_pubkey, docker_count):
+def write_config_file(args, user_pubkey, docker_count, upgradeable):
 
     program_string = (base58.b58encode(bytearray(args.address))).decode("utf-8")
     config_name = "verify_run_script_" + str(docker_count) + ".sh"
@@ -173,7 +176,7 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("git clone https://github.com/daoplays/sol_verify.git\n")
 
     f.write("cd /sol_verify/client\n")
-    f.write("git checkout 7e51fc1bf7bfb179b87a818d05e0ba69c54547ba\n")
+    f.write("git checkout 5ed98a0104441d4c67e5efc61faa232537f54562\n")
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : sol_verify built, airdropping funds'\n")
 
     # to avoid rate limits create a new pubkey, airdrop to there and then transfer over
@@ -224,7 +227,11 @@ def write_config_file(args, user_pubkey, docker_count):
     f.write("export ABSDIR=$(realpath $OUTDIR)\n")
 
     # deploy the program
-    f.write("solana program deploy $OUTDIR/*.so --commitment finalized\n")
+    if upgradeable:
+        f.write("solana program deploy $OUTDIR/*.so --commitment finalized\n")
+    else:
+        f.write("solana program deploy $OUTDIR/*.so --final --commitment finalized\n")
+        
     f.write("cd /sol_verify/client\n")
 
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : running verification'\n")

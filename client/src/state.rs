@@ -2,6 +2,7 @@ use thiserror::Error;
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use solana_program::{pubkey::Pubkey};
+use serde::{Deserialize, Serialize};
 
 
 #[derive(Error, Debug)]
@@ -88,4 +89,10 @@ pub enum VerifyInstruction {
     UpdateStatus {
         metadata : StatusMeta
     }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ProgramJsonData {
+    pub upgradeable: bool,
+    pub source_code: String
 }

@@ -1,7 +1,7 @@
 
 pub mod state;
 
-use crate::state::{Result, SubmitProgramMeta, VerifyInstruction, VerifyProgramMeta, ProgramMetaData, StatusMeta, Network};
+use crate::state::{Result, SubmitProgramMeta, VerifyInstruction, VerifyProgramMeta, ProgramMetaData, StatusMeta, Network, ProgramJsonData};
 
 use std::borrow::Borrow;
 use std::{env, io::BufRead};
@@ -21,6 +21,7 @@ use sha2::{Sha256, Digest};
 use solana_security_txt::security_txt;
 use std::fs::File;
 use std::io::prelude::*;
+use serde::{Deserialize, Serialize};
 
 // some globals
 const PROGRAM_KEY : &str = "CNd6wN4en9Xvbf2e1ubb2YyCkC7J1BbbuhAGhqcdHFbi";
@@ -419,19 +420,19 @@ fn verify_program(key_file: &String, test_key_file: &String, real_address_string
  
 
     // finally update the user with the result
-    if current_state.verified_code == 1 {
+    if verified_code == 1 {
         message += "Verification process has not produced a match";
         update_status(key_file, user_address, 1  as u8, &message)?;
         return Ok(println!("{}", message))
     }
 
-    if current_state.verified_code == 2 {
+    if verified_code == 2 {
         message +=  "Verification was successful, however the program is upgradable";
         update_status(key_file, user_address, 1  as u8, &message)?;
         return Ok(println!("{}", message))
     }
 
-    if current_state.verified_code == 3 {
+    if verified_code == 3 {
         message +=  "Verification was successful, and program is immutable";
         update_status(key_file, user_address, 1  as u8, &message)?;
         return Ok(println!("{}", message))
@@ -546,22 +547,43 @@ fn get_security(program_address_string : &String) ->Result<()> {
         return Ok(());
     }
 
+    let real_meta : UpgradeableLoaderState = bincode::deserialize_from(&program_data_account.data[..offset]).unwrap();
+
+    let mut upgrade_info = upgrade_info {slot : 0, upgrade_authority : Some(system_program::ID)};
+
+    println!("data_buffer {:?}", real_meta);
+
+    let mut upgradeable : bool = false;
+    match real_meta {
+        UpgradeableLoaderState::ProgramData{slot, upgrade_authority_address} => 
+        upgrade_info = upgrade_info {slot : slot, upgrade_authority  : upgrade_authority_address},
+        _ => println!("Account not upgradeable"),
+    }
+
+    if upgrade_info.upgrade_authority.is_some() {
+        upgradeable = true;
+    }
+
     let program_data = &program_data_account.data[offset..];
 
     let security_txt = solana_security_txt::find_and_parse(program_data).unwrap();
     println!("{}", security_txt);
 
-    if security_txt.source_code.is_none() {
-        return Ok(());
+    let mut json_data = ProgramJsonData {
+        upgradeable: upgradeable,
+        source_code: "none".to_owned(),
+    };
+
+
+    if security_txt.source_code.is_some() {
+        json_data.source_code = security_txt.source_code.unwrap();
     }
 
-    let source_code = &security_txt.source_code.unwrap();
+    let j = serde_json::to_string(&json_data).unwrap();
 
-    
-    println!("Source code: {:?}", source_code);
-    let mut file = File::create("security_txt_output").unwrap();
-    file.write_all(source_code.as_bytes()).unwrap();
-    
+    let mut file = File::create("program_meta_data.json").unwrap();
+    file.write_all(j.as_bytes()).unwrap();
+
 
     Ok(())
 
