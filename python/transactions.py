@@ -176,7 +176,7 @@ def write_config_file(args, user_pubkey, docker_count, upgradeable):
     f.write("git clone https://github.com/daoplays/sol_verify.git\n")
 
     f.write("cd /sol_verify/client\n")
-    f.write("git checkout 5ed98a0104441d4c67e5efc61faa232537f54562\n")
+    f.write("git checkout 34e38e561959e5d3270f7f9fc1518764f2763ed1\n")
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : sol_verify built, airdropping funds'\n")
 
     # to avoid rate limits create a new pubkey, airdrop to there and then transfer over
@@ -231,7 +231,7 @@ def write_config_file(args, user_pubkey, docker_count, upgradeable):
         f.write("solana program deploy $OUTDIR/*.so --commitment finalized\n")
     else:
         f.write("solana program deploy $OUTDIR/*.so --final --commitment finalized\n")
-        
+
     f.write("cd /sol_verify/client\n")
 
     f.write("cargo run /root/.config/solana/id.json update_status " + user_pubkey + " 0 'Program " + program_string + " : running verification'\n")
@@ -341,7 +341,6 @@ def get_update_state_idx(user_account_key, status_code, log_message):
     user_account, _user_bump = PublicKey.find_program_address([bytes(PublicKey(user_account_key)), bytes("user_account", encoding="utf8")], PublicKey(PROGRAM_KEY))
 
     status_code = np.uint8(status_code)
-    #status_meta = StatusMeta.build({"address" : PublicKey(user_account_key), "status_code": status_code, "log_message" : log_message})
 
     instruction = TransactionInstruction(
         program_id = PublicKey(PROGRAM_KEY),

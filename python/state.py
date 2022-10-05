@@ -22,7 +22,7 @@ Verifier_Network = Enum(
     enum_name="VerifierNetwork", 
 )
 
-SubmitProgramMeta = CStruct(
+SubmitProgramArgs = CStruct(
      "address" / U8[32],
      "network" / Verifier_Network,
      "git_repo" / String,
@@ -34,6 +34,18 @@ SubmitProgramMeta = CStruct(
      "anchor_version" / String
 )
 
+VerifyProgramArgs = CStruct(
+    "verified_code" / U8,
+    "real_address" / U8[32],
+    "test_address" / U8[32],
+    "data_hash" / U8[32],
+    "last_verified_slot" / U64,
+    "network" / Verifier_Network,
+    "git_repo" / String,
+    "git_commit" / String,
+    "directory" / String
+)
+
 VerifyProgramMeta = CStruct(
     "test_address" / U8[32],
     "last_verified_slot" / U64,
@@ -42,16 +54,16 @@ VerifyProgramMeta = CStruct(
     "code_meta" / U8[512]
 )
 
-StatusMeta = CStruct(
+StatusArgs = CStruct(
     "address" / U8[32],
     "status_code" / U8,
     "log_message" / String
 )
 
 Verifier_Instructions = Enum(
-    "SubmitProgram" / SubmitProgramMeta,
-    "VerifyProgram" / VerifyProgramMeta,
-    "UpdateStatus" / StatusMeta,
+    "SubmitProgram" / SubmitProgramArgs,
+    "VerifyProgram" / VerifyProgramArgs,
+    "UpdateStatus" / StatusArgs,
     enum_name="VerifierInstruction", 
 )
 
